@@ -55,6 +55,8 @@ npm run build
 - [docs/JOURNAL.md](docs/JOURNAL.md) — the build, step by step, with the reasoning.
 - [docs/dotnet-rewrite/](docs/dotnet-rewrite) — a second journal: how this would have been designed and built on
   C# and .NET, what would change and what would not. A proposal only; nothing there is built.
+- [docs/userstories/](docs/userstories) — twenty practice tasks for a junior or mid-level engineer, each with
+  step-by-step implementation instructions. Not implemented: they are for you to do.
 - [docs/api-contract.md](docs/api-contract.md) — every endpoint and business rule.
 - [docs/adr/](docs/adr) — architecture decision records.
 - [docs/briefs/](docs/briefs) — the briefs given to each builder agent, verbatim.
