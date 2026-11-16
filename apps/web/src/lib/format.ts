@@ -30,7 +30,11 @@ export function formatDateTime(timestamp: string | null | undefined): string {
 
 /** 2150 -> "21.5%" */
 export function formatBps(bps: number): string {
-  return `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 2).replace(/0$/, '')}%`;
+  // Whole percentages print with no decimals; otherwise up to two, without a trailing zero.
+  // (An earlier version stripped a trailing zero from whole numbers too: 20% became '2%'.)
+  const percent = bps / 100;
+  const text = Number.isInteger(percent) ? String(percent) : percent.toFixed(2).replace(/0$/, '');
+  return `${text}%`;
 }
 
 /** 'pending_approval' -> 'Pending approval' */

@@ -1301,6 +1301,631 @@ twenty pages would otherwise each decide for themselves — how to fetch, how to
 error, what a button looks like, what a query key is called — is decided once, and the
 decisions are *code the builders import*, not prose they might skim.
 
+---
+
+## 13. Wave 1 comes back: reading three reports
+
+Roughly twenty minutes after they were started, the three backend builders reported.
+The headline numbers they claimed:
+
+| Builder | Modules | Tests claimed | Runs |
+| --- | --- | --- | --- |
+| A — People | countries, quotes, workers, onboarding, documents | 108 | passed twice |
+| B — Work | contracts, time off, expenses | 156 | passed twice |
+| C — Money | payroll, invoices, audit, dashboard | 70 | passed twice |
+
+It would be easy to type `git commit` here. This chapter is about the four things the
+lead did instead.
+
+### 13.1 Re-run everything yourself
+
+A builder's "all tests pass" is a *claim about its own environment*. The lead re-ran each
+builder's suites on a database none of them had touched:
+
+```
+$ npx vitest run src/modules/payroll src/modules/invoices src/modules/audit src/modules/dashboard
+ Test Files  4 passed (4)
+      Tests  70 passed (70)
+
+$ npx vitest run src/modules/countries src/modules/workers src/modules/documents
+ Test Files  3 passed (3)
+      Tests  108 passed (108)
+```
+
+The claims held. That is the expected outcome — and it is still not optional. The one
+time in twenty that a report is wrong is the time it matters, and you cannot know in
+advance which time that is.
+
+### 13.2 Read the "ambiguities" section first
+
+The briefs required each builder to list every place the contract was unclear and what
+they decided. This section of a report is worth more than the code, because it is a list
+of **decisions somebody made on your behalf**. Between them the builders listed about
+forty. Most were sensible and are now simply how the system behaves:
+
+- *"A worker acting on their own draft or void contract gets 404, not 409, because they
+  are not allowed to see those contracts."* (B) — exactly right: you must not reveal that
+  an invisible thing exists.
+- *"`nextval` is not rolled back, so a failed approval uses up an invoice number. That is
+  acceptable for a gap-tolerant sequence; it is not a reuse."* (C) — correct, and it shows
+  the builder understood *why* the brief demanded a sequence.
+- *"Re-uploading a file clears `reviewNote`, `reviewedAt` and `reviewedBy`, because the
+  new file is a new submission."* (A) — a rule the lead had not thought to write.
+
+Builder A also did something the brief had asked for but which is easy to skip. Its first
+search-escaping test used the string `under_score` — and it noticed that string happens
+to contain the letters the pattern would match *anyway*, so the test passed whether or
+not escaping worked:
+
+> Workers had 1 failure, caused by my own test: `under_score` really contains `r_s`, so it
+> was not proving the escaping. I replaced it with `Eng_neer` and `1%remote`, which would
+> only match if `_` and `%` acted as wildcards.
+
+That is the question from chapter 9 — *"what change to the code would make this test
+fail?"* — being asked by the builder of its own test.
+
+### 13.3 Read the "known gaps" section as a bug list
+
+The brief said: *known gaps or shortcuts, honestly.* Builder A's list contained two items
+that are not gaps. They are defects:
+
+> **Hiring doesn't check for an existing user login:** if a `users` row already has the
+> worker's email … the worker invite is created but can't be accepted later. I didn't add
+> a check because the contract doesn't specify one.
+
+> **No session cleanup:** terminating or cancelling a worker doesn't deactivate their
+> portal login or end their sessions. That isn't in the contract.
+
+Both sentences end the same way: *the contract doesn't say.* The builder was right not to
+invent behaviour — that was the instruction — and right to say so. **The gap was in the
+lead's specification**, and the lead fixes it.
+
+> **Prompt (lead → assistant)**
+> Two fixes in the workers service. (1) Hiring with an invite, or inviting later, must
+> refuse with `409 email_in_use` if that email already has a login — and I want the test
+> for it to also prove the hire transaction rolls back, because this failure happens
+> *after* the worker row is inserted. (2) Cancelling an onboarding hire must deactivate
+> the portal login and delete its sessions in the same transaction. But a *terminated*
+> worker keeps read access: they still need their final payslip, and every write path
+> already requires an active worker. Write that reasoning into the code.
+
+The second fix contains a product decision hiding inside a security fix. "Kill access
+when someone leaves" sounds obviously right — until you remember the person who left
+still needs to download their last payslip and, later, their tax documents. Cancelled
+(never started) and terminated (worked here, now gone) are different situations and get
+different answers:
+
+```ts
+// If they had already accepted their invite, the portal login must die with
+// the hire: deactivate it and end its sessions now, in this transaction.
+// (A TERMINATED worker deliberately keeps read access — they still need
+// their final payslip. Every write path already requires an active worker.)
+```
+
+And the first fix paid an unexpected dividend. Builder A had confessed another weakness:
+
+> The test asking that a duplicate email leaves nothing behind passes, but in that case
+> the failure comes from the very first insert. No test makes a later step of the hire
+> fail.
+
+In other words, the "hire is one transaction" test would have passed *without* a
+transaction, because the failing statement was the first one. The new `email_in_use`
+check fails **after** the worker, the checklist and the documents have all been inserted —
+so its test is the first real proof of the rollback:
+
+```ts
+expect(res.body.error.code).toBe('email_in_use');
+// This failure happens AFTER the worker, tasks and documents were inserted,
+// so it is the real proof that the hire is one transaction.
+expect(await db.select().from(workers).where(eq(workers.organizationId, org.id))).toHaveLength(0);
+expect(await db.select().from(onboardingTasks)).toHaveLength(0);
+expect(await db.select().from(documents)).toHaveLength(0);
+```
+
+**Lesson — when you ask for honesty, read the answer.** "Known gaps" is the most valuable
+paragraph an engineer (human or AI) will ever hand you, and it is the first one a busy
+reviewer skims. An agent that reports its own weak spots is giving you a prioritised
+review for free. The corollary: *ask for that section explicitly*. Without the
+instruction, the default report is "everything works".
+
+### 13.4 Read some of the code — especially at the boundaries
+
+The lead did not read 3,000 lines. The lead read the places where a mistake is expensive:
+file storage, invoicing, and the worker state transitions.
+
+File storage is a classic source of security bugs (path traversal: a file named
+`../../etc/passwd`). Builder A's version:
+
+```ts
+/** Key -> absolute path, refusing anything that is not exactly `<uuid>/<uuid>`. */
+function resolveKey(key: string): string {
+  const match = KEY_PATTERN.exec(key);
+  if (!match?.[1] || !match[2]) throw new Error('Invalid storage key');
+  const root = path.resolve(config.storageDir);
+  const full = path.resolve(root, match[1], match[2]);
+  // Belt and braces: the regex already rules out `..`, but check containment anyway.
+  if (!full.startsWith(root + path.sep)) throw new Error('Storage key escapes the storage root');
+  return full;
+}
+```
+
+The user's file name never reaches the filesystem at all — it is stored only as a label.
+The path is built from two UUIDs the server generated, validated by a pattern, *and then*
+checked for containment. Two independent defences for one threat is called **defence in
+depth**: if one is ever broken by a future edit, the other still holds.
+
+Invoicing showed the same care in a different form:
+
+```ts
+if (!rate) {
+  // Refusing is the only safe answer: guessing a rate would bill the client a made-up amount.
+  throw conflict(`No exchange rate for ${run.currency}; cannot issue the invoice`, 'fx_rate_missing');
+}
+```
+
+When data is missing, the two options are to fail or to guess. For money, always fail.
+
+### 13.5 The first integrated run
+
+Each builder ran only its own suites, on its own database. Nobody had yet run all of it
+together. That first combined run is the real moment of truth for a parallel build:
+
+```
+$ cd apps/api && npx vitest run
+ Test Files  13 passed (13)
+      Tests  378 passed (378)
+   Duration  120.01s
+```
+
+Three engineers, twelve modules, written simultaneously without seeing each other's code,
+and no integration fixes needed. That is not luck and it is not the builders being
+clever. It is chapter 11: the schema, the DTOs, the shared helpers and the seams were all
+fixed before anyone started, so there was nothing left to disagree about.
+
+*Commits `cae657e`, `0e812a7`, `471bccd` — one per builder, so `git blame` still tells you
+which brief produced which code.*
+
+---
+
+## 14. Measure, then optimise: the slow test suite
+
+Chapter 9 noted a worry and deliberately left it: 38 tests took 37 seconds. Builder B's
+report raised the same flag from the other side:
+
+> Each test takes about 0.5s, almost all of it the per-test truncate. One run of all three
+> suites takes 2.5 to 3.5 minutes.
+
+A test suite that takes five minutes gets run less often. A suite that gets run less
+often catches bugs later. So this is worth fixing — but **not by guessing**. The builder
+says it is the truncate. Is it?
+
+> **Prompt (lead → assistant)**
+> Before changing anything: time the cleanup statement by itself in `psql`, three times.
+> Then time the alternative — plain `DELETE`s in dependency order. I want numbers.
+
+```
+truncate table organizations, users, audit_logs restart identity cascade;
+Time: 371.425 ms
+Time: 349.824 ms
+Time: 350.094 ms
+
+delete from audit_logs;  delete from invoice_lines;  …  delete from organizations;
+Time: 5.939 ms   Time: 3.035 ms   Time: 7.157 ms   …   (16 statements, ~80 ms in total)
+```
+
+There it is. `TRUNCATE` is the right tool for emptying a *big* table: it throws away the
+table's files instead of deleting rows one by one. But it pays a fixed cost per table —
+heavy locks, new files, a sync to disk — whether the table holds a million rows or none.
+Our tests hold a handful of rows in each of sixteen tables, which is the worst case for
+`TRUNCATE` and the best case for `DELETE`.
+
+The original one-liner had a real virtue, though: `CASCADE` meant a new table was cleaned
+automatically. A hand-written list of tables can go stale — someone adds a table, forgets
+the list, and rows leak from one test into the next, causing failures that make no sense.
+
+So the change came with a guard:
+
+```ts
+it('names every table in the schema', async () => {
+  const result = await db.execute(sql`select table_name from information_schema.tables
+                                      where table_schema = 'public' and table_type = 'BASE TABLE'`);
+  expect(actual, 'A table exists that src/test/cleanup.ts does not know about. Add it to ' +
+    'TENANT_TABLES (before the tables it references) or to REFERENCE_TABLES.').toEqual(listed);
+});
+```
+
+The test asks the database what tables actually exist and compares that with the list.
+Forget to update the list and this fails immediately, with a message that says what to
+do. The trade-off — speed for a manual list — was made safe by making the manual step
+impossible to forget.
+
+Result, on the full suite:
+
+| | Before | After |
+| --- | --- | --- |
+| Time spent in tests | ~0.8 s per test | ~0.16 s per test |
+| Whole API suite (378 tests) | would be ≈ 5 min | **2 min** (59 s in the tests themselves) |
+
+*Commit `e89429d` — test(api): replace TRUNCATE CASCADE with ordered DELETEs.*
+
+**Lesson — measure before you optimise, and write the measurement down.** The builder's
+guess was right this time. It would have been just as plausible for the cost to be the
+scrypt password hashing, or opening database connections. One minute with `\timing`
+turned a guess into a fact, and the numbers went into the commit message so the next
+person does not have to wonder whether the change was worth its complexity.
+
+**Lesson — when you trade safety for speed, buy the safety back with a test.**
+
+---
+
+## 15. The journey test: proving the seams
+
+378 passing tests, and still a real question nobody has answered: **do the modules work
+together?**
+
+Look at how each builder's tests were constructed. The brief told Builder C: *"do not call
+their endpoints in your tests. Use `createWorker(...)` and insert `expenses` rows
+directly."* That was necessary — the other modules did not exist yet. But it means
+payroll was tested against workers *as the test factory creates them*, not as the hiring
+endpoint creates them. If those two ever differ — a field the factory sets that the real
+endpoint leaves null — every unit of the system is green and the product is broken.
+
+So the lead wrote one more test, of a different kind:
+
+> **Prompt (lead → assistant)**
+> Write a single test that uses **no factories for business data**. Three actors — a
+> client admin who signs up, the worker they hire, a platform admin — walking the whole
+> product through the public API: register → quote → hire → accept invite → contract
+> generate/send/sign/activate → upload and verify documents → finish the checklist →
+> time off → expense → payroll create/submit/approve → try to process before paying →
+> pay the invoice → process → mark paid → payslip. Assert the cross-module facts along
+> the way.
+
+It is about 250 lines and it reads like a story. The assertions that matter most are the
+ones that *span* modules:
+
+```ts
+// The payslip's employer cost equals what the calculator quoted in step 2:
+// two modules, built separately, agreeing because both call the same shared maths.
+expect(run.body.employerCostMinor).toBe(quotedEmployerCost);
+```
+
+Builder A wrote the cost calculator. Builder C wrote payroll. Neither saw the other's
+code. The number a client is quoted before hiring and the number they are billed
+afterwards agree to the cent, because both modules call `packages/shared/src/calc.ts`.
+*That* is what "single source of truth" buys you, demonstrated rather than asserted.
+
+```ts
+// The last task flips the worker to active — nobody pressed an "activate" button.
+expect(last.body.workerStatus).toBe('active');
+```
+
+Four tasks, completed by three different modules (contracts, documents, workers) written
+by two different builders, all funnelling through the seam function from chapter 11.
+
+```ts
+const tooEarly = await platform.post(`/payroll/runs/${runId}/process`);
+expect(tooEarly.status).toBe(409);
+expect(tooEarly.body.error.code).toBe('invoice_unpaid');
+```
+
+And the audit trail at the end — written by twelve modules, none of which coordinated —
+contains every step in order.
+
+```
+$ npx vitest run src/test/journey.test.ts
+ ✓ journey: from signup to a paid payslip > hires, onboards, pays and bills for one employee in Germany  4762ms
+```
+
+It passed first time. Had it failed, it would have failed at exactly the seam that was
+wrong, with the step number in the stack trace.
+
+**Lesson — the test pyramid has a top for a reason.** Many fast, focused tests tell you
+*which* piece is broken. A very small number of end-to-end tests tell you whether the
+pieces *fit*. You need both, and when work is split between people (or agents), the
+second kind is the only thing that checks the splitting itself.
+
+---
+
+## 16. Seed data that cannot lie
+
+A demo needs data: a company, a dozen workers at different stages, some payroll history.
+The obvious way is a file of `INSERT` statements. The lead rejected it.
+
+> **Prompt (lead → assistant)**
+> Write the seed script so that it creates data by calling the real API in-process — the
+> same way the journey test does. Direct inserts only where no endpoint exists (the
+> platform admin). Dates relative to today, so the demo never looks stale. Make it
+> idempotent, with an explicit `--reset`, and refuse to run against production.
+
+The reasoning is in the header comment of `apps/api/src/db/seed.ts`:
+
+```ts
+ * Why go the long way round?
+ *  - Seed data that bypasses the rules drifts into states the app can never
+ *    produce (an "active" worker with no signed contract), and then the UI
+ *    crashes on data no user could have created.
+ *  - It doubles as a smoke test: if the seed runs, the whole flow works.
+ *  - Payslip numbers, invoice totals and the audit trail are all REAL.
+```
+
+Hand-written seed rows are the reason "it only breaks on the demo database" is a phrase
+every engineer has heard. If `status = 'active'` is typed into an INSERT, nothing checks
+that the contract was signed, the documents verified, the checklist complete. The seed is
+then a second, unofficial, untested implementation of your business rules — and it will
+disagree with the real one.
+
+Driving the API instead, the seed takes each worker through real onboarding, then
+deliberately *stops* people at interesting points, so every screen has something to show:
+
+| Who | State | Why they are there |
+| --- | --- | --- |
+| Lena, Tom, Priya, Maria, James | active employees | payroll history, time off, expenses |
+| Sofia | active contractor | paid gross — a different payslip shape |
+| Kenji | offboarding | end date next month → a prorated final payslip later |
+| Diego | onboarding | contract *sent* but unsigned, one document awaiting review |
+| Chloe | onboarding | hired today, invite link not yet opened |
+| payroll: DE ×3, IN ×2, JP ×2, PH, ES | paid | a spend history for the dashboard |
+| payroll: GB last month | approved, **invoice unpaid** | shows the "waiting for payment" state |
+| payroll: DE this month | pending approval | something for the admin to approve |
+| payroll: IN this month | draft | something to recalculate or submit |
+| Globex Labs | a second company | so tenant isolation is visible, not theoretical |
+
+```
+$ npm run db:seed
+Hiring and onboarding the Acme team…
+Time off, expenses, payroll…
+Seeded meridian_dev.  Password for every account: meridian-demo-1
+```
+
+Afterwards the dev database holds 11 workers, 12 payroll runs, 10 invoices — and **209
+audit log entries**, none of them written by the seed script itself. Every one was
+produced by the application as a side effect of doing real work.
+
+*Commit `4066fa3` — journey test and API-driven seed.*
+
+**Lesson — if two pieces of code must agree, make one of them call the other.** The seed
+calls the API rather than re-implementing it. The API calls `calc.ts` rather than
+re-implementing the maths. The web form uses the API's zod schema rather than
+re-implementing validation. It is the same idea at every level of the system.
+
+---
+
+## 17. The independent review, and the bug that was the lead's
+
+Everything is green: 378 module tests, a journey test, a seed that runs. This is the
+most dangerous moment in a project, because all the evidence says "done" and all of that
+evidence was produced by the people who wrote the code.
+
+So the lead commissioned a review from someone who had seen none of it.
+
+> **Prompt (lead → a fresh reviewer agent)** *(abridged; the real one is longer)*
+> READ-ONLY review. Do not edit or run anything. The API was built by three engineers,
+> module by module; their suites pass. Nobody has read the code across modules with fresh
+> eyes. Hunt for real defects in this priority order: tenant isolation; authorization;
+> money and state integrity; contract deviations; data leaks; cross-module
+> inconsistencies.
+> Do NOT report style, naming, coverage wishes or "could be better". Only report something
+> if you can state a concrete scenario — who does what, in what state — that produces a
+> wrong result. For each candidate, re-read the surrounding code and try to **disprove**
+> it before reporting. Finish with a "checked and found sound" list so I know what was
+> covered.
+
+Three things in that prompt are deliberate:
+
+1. **It does not say what the lead thinks is wrong.** A reviewer handed your suspicion
+   tends to come back confirming it. A reviewer handed the code and a priority list comes
+   back with what is actually there.
+2. **It demands a concrete failure scenario** and tells the reviewer to try to disprove
+   its own findings. Without that, review output is a long list of maybes, and the real
+   bug is item 14 of 30.
+3. **It asks what was checked and found fine.** Otherwise "no findings in tenant
+   isolation" is indistinguishable from "did not look at tenant isolation".
+
+### 17.1 What came back
+
+> I found one high-severity money defect and five low-severity ones. Tenant isolation and
+> authorization came out clean.
+
+The high one:
+
+> **HIGH — Japan invoices are under-billed 100x.** `convertMinor` divides minor units by
+> the FX rate and never accounts for JPY having 0 minor digits while USD has 2. … monthly
+> gross is 666,667. On approve, `toUsd(666667)` gives 4415, stored as USD cents: the
+> `gross_pay` line is $44.15 instead of $4,415.01. … The line description still prints
+> the correct "¥666,667", so the invoice contradicts itself.
+
+Look at where it is: `packages/shared/src/money.ts`. That file was not written by a
+builder. **The lead and the assistant wrote it, in chapter 6** — the chapter with the
+four confident rules about money.
+
+Here is the function as originally written:
+
+```ts
+export function convertMinor(amountMinor: number, fromPerUsd: string, toPerUsd: string): number {
+  …
+  return roundHalfUp((amountMinor / from) * to);
+}
+```
+
+It converts *minor units* using a rate that relates *major units*. Between euros and
+dollars that is fine by accident: both have 100 minor units per major unit, so the two
+factors of 100 cancel. For yen there is no minor unit — ¥700,000 is stored as `700000` —
+so one factor of 100 has nothing to cancel against.
+
+**First, confirm it.** A review finding is a hypothesis until you have seen it happen.
+The seed had created Japanese payroll runs, so the evidence was already sitting in the
+database:
+
+```
+$ psql … -c "select number, currency, gross_minor, kind, amount_minor, description …"
+INV-2026-001006 | JPY | 700000 | gross_pay | 4636 | Gross pay, Japan, September 2026 (¥700,000)
+```
+
+¥700,000 of salary, billed to the client as **$46.36**. Real, and it had been sitting in
+the demo data the whole time.
+
+### 17.2 Why did 378 tests not catch it?
+
+This question matters more than the fix.
+
+- The unit test for `convertMinor` used EUR → USD. Both are two-decimal currencies. The
+  test verified the arithmetic and happened to choose the one family of inputs where the
+  bug is invisible.
+- Builder C wrote a hand-computed invoice test — for a German worker. The brief said
+  *"a German employee on €60,000/yr"*. The builder did exactly what was asked.
+- The journey test hires in Germany.
+- The seed *did* create Japanese invoices. Nothing looked at them.
+
+Every test used the same comfortable example. And the really uncomfortable part: the
+codebase **knew** yen was special. `money.ts` contained, twenty lines below the bug,
+
+```ts
+const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND', 'CLP']);
+```
+
+used by `formatMoney` — which is why the invoice line printed the correct "¥700,000"
+next to the wrong dollar amount. The knowledge existed in one function and was missing
+from its neighbour.
+
+**Lesson — your test data has a comfort zone, and bugs live outside it.** When every
+example is the same shape (one country, one currency, one happy month), you are testing
+one point in a large space. Ask of every calculation: *what is the weirdest legal input?*
+A currency with no cents. A February in a leap year. A worker who starts on the 31st.
+A salary at the cap. Put those in the tests *by name*.
+
+**Lesson — the author is the worst person to review their own code**, and that includes
+the lead, and it includes an AI reviewing its own output. The lead read `invoicing.ts`
+in chapter 13 and thought it was careful. It *was* careful. The defect was one layer
+down, in a helper the lead trusted because the lead had written it.
+
+### 17.3 The fix
+
+```ts
+export function convertMinor(
+  amountMinor: number,
+  from: { currency: string; perUsd: string },
+  to:   { currency: string; perUsd: string },
+): number {
+  …
+  const major = amountMinor / 10 ** minorUnitDigits(from.currency);   // minor -> major
+  const convertedMajor = (major / fromRate) * toRate;                 // apply the rate
+  return roundHalfUp(convertedMajor * 10 ** minorUnitDigits(to.currency)); // major -> minor
+}
+```
+
+Notice the **signature** changed, not just the body. The old function took two rate
+strings; nothing in its type said "I need to know which currencies these are". The new
+one cannot be called without the currency codes. A bug that came from a function not
+having the information it needed is fixed by making that information mandatory — the
+compiler then found the one call site that had to change.
+
+The regression test uses numbers a person can check on a calculator:
+
+```ts
+// At 151 JPY per USD:  ¥700,000 / 151 = $4,635.76  -> 463,576 cents
+expect(line('gross_pay')).toBe(463_576);
+//                      ¥107,800 / 151 = $713.91    ->  71,391 cents
+expect(line('employer_cost')).toBe(71_391);
+```
+
+And the comment above the function now tells the story, so the next reader knows this
+line has history:
+
+```ts
+ * The first version of this function skipped steps one and three. That is
+ * harmless between two 2-decimal currencies (the factors cancel) and silently
+ * wrong by 100x for yen. See journal chapter 17.
+```
+
+### 17.4 The five smaller findings
+
+Each is a real scenario; each is small. Together they show what "fresh eyes across
+modules" finds that per-module tests cannot.
+
+**A team invite could destroy a worker's portal invite.** Inviting a teammate deletes any
+earlier pending invite for that email (so only one link is ever live). It did not check
+whether the earlier invite was a *worker's*. Invite a worker's address as a teammate and
+their portal link silently died; if they accepted the teammate invite they became a
+client user with no worker record, and could then never sign their contract. This one
+was in the **lead's** reference module, which the builders had faithfully copied the
+*style* of. Fix: scope the delete to team invites, and refuse a team invite for an email
+that belongs to a worker.
+
+**The lead's own fix from chapter 13 was incomplete.** The `email_in_use` check only ran
+when an invite was requested. Hiring with "don't send an invite" succeeded — creating a
+worker who could never be given portal access, never sign, never activate. The reviewer
+caught a hole in a fix made two hours earlier. Fix: check on every hire.
+
+**A deadlock between signing and cancelling.** Signing a contract locked the *contract*
+row, then (through the onboarding seam) the *worker* row. Cancelling a hire locked the
+*worker* row, then updated the *contract*. Two transactions taking the same two locks in
+opposite orders can each end up waiting for the other; Postgres detects the cycle and
+kills one, which the user sees as a 500. The rule that prevents this is old and simple:
+
+> **Always take locks in the same order.**
+
+Fix: contract transitions now lock the worker first — the same order the workers module
+uses. This bug existed *between* Builder A's module and Builder B's. Neither could have
+seen it; each was correct alone.
+
+**A stale read when voiding a contract** — the same cure (read the worker's status under
+the lock).
+
+**A sloppy regex**: the `X-Org-Id` check accepted any 36 characters from `[0-9a-f-]`,
+including 36 dashes, which then crashed in Postgres as a 500. The codebase already had a
+strict UUID pattern in another file. Fix: use it. One pattern, one place.
+
+### 17.5 Honest about the tests for these
+
+The lead wrote regression tests for all of them, and then caught something in the first
+draft of the test file's own header comment. It claimed every test "was written to FAIL
+against the code as it was before the fix". That was true of the yen test — the seeded
+data proved it. It was **not verified** for the deadlock test: a deadlock needs unlucky
+timing, and a test that runs the race five times might simply never hit it, before or
+after the fix. The comment was rewritten to say so:
+
+```ts
+ * The concurrency test is a guard, not a proof: a deadlock needs unlucky timing,
+ * so passing five rounds lowers the odds rather than ruling it out.
+```
+
+**Lesson — do not claim more than you checked, even in a comment.** A test that is
+described as proving something it does not prove is worse than no test: it stops the next
+person from looking.
+
+### 17.6 What the review did *not* find
+
+> **Tenant isolation:** none. **Authorization:** none. **Data leaks:** none.
+> Every tenant-table query in all 12 modules filters on `requireOrgId(actor)`. … Every
+> response is mapped with an explicit field list. `storageKey`, `signatureIp`,
+> `passwordHash` and token hashes never leave.
+
+Those are the categories the lead worried about most and wrote the most rules about:
+the `Actor`, rule 2 in `CLAUDE.md`, the cross-tenant test required in every brief. The
+defects all turned up in places the rules did *not* cover — a helper function, the
+interaction between two modules, a specification the lead had left incomplete.
+
+That is the pattern to take away. **Rules, briefs and reference code prevent the bugs you
+anticipated. Independent review finds the ones you did not.** You need both, and you need
+the second precisely *because* the first works well enough to make you confident.
+
+The reviewer also listed four behaviours that are "the code follows the contract, but is
+the contract right?" — for example, a worker activated after their first month's payroll
+was already run is never back-paid for those days. Those are product decisions rather
+than bugs, and they go on the known-gaps list in the final chapter instead of being
+quietly patched.
+
+```
+$ npx vitest run        (after all fixes)
+ Test Files  15 passed (15)
+      Tests  385 passed (385)
+$ npm run db:seed -- --reset
+gross_pay | 463576 | Gross pay, Japan, September 2026 (¥700,000)      ← was 4636
+```
+
+*Commit `fix: independent review findings`.*
+
 <!-- JOURNAL:APPEND-BELOW -->
 
 ---

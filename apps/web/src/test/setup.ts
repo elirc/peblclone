@@ -3,3 +3,15 @@ import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
 afterEach(() => cleanup());
+
+// jsdom does not implement the <dialog> methods our Modal relies on. Without these
+// two stand-ins, any test that opens a modal throws before it can assert anything.
+if (typeof HTMLDialogElement !== 'undefined' && !HTMLDialogElement.prototype.showModal) {
+  HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) {
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+}

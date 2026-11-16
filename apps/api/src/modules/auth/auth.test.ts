@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { describe, expect, it } from 'vitest';
+import { config } from '../../config';
 import { db } from '../../db/client';
 import { auditLogs, invitations, organizations, sessions, users, workers } from '../../db/schema';
 import { hashToken } from '../../lib/crypto';
@@ -193,7 +194,7 @@ describe('CSRF origin check', () => {
 
   it('allows the web app origin', async () => {
     const { admin } = await createTenant();
-    const res = await admin.post('/auth/logout').set('Origin', 'http://localhost:5173');
+    const res = await admin.post('/auth/logout').set('Origin', config.webOrigin);
     expect(res.status).toBe(204);
   });
 });
