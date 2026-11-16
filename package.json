@@ -1,0 +1,32 @@
+{
+  "name": "meridian",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Meridian — a global employment (EOR) platform, built as a teaching codebase",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev -w @meridian/api\" \"npm run dev -w @meridian/web\"",
+    "dev:api": "npm run dev -w @meridian/api",
+    "dev:web": "npm run dev -w @meridian/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build -w @meridian/web",
+    "db:generate": "npm run db:generate -w @meridian/api",
+    "db:migrate": "npm run db:migrate -w @meridian/api",
+    "db:seed": "npm run db:seed -w @meridian/api",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "prettier": "^3.4.0",
+    "typescript": "5.9.3"
+  }
+}
