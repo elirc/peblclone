@@ -1149,6 +1149,158 @@ understand the task well enough to hand it to anyone.
 The three builders were then started together. While they worked, the lead moved on to
 the one piece of the frontend that is also "shared foundation": the web shell.
 
+---
+
+## 12. The web shell
+
+The frontend has the same shape of problem as the backend: twenty pages to build, most of
+them independent, all of them needing the same plumbing. So the same move — the lead
+builds the shared part once, by hand with the assistant, and delegates the pages.
+
+> **Prompt (lead → assistant)**
+> Build the web shell and nothing else: Vite + React + Tailwind config; ONE module that
+> calls `fetch`; TanStack Query set up with a central list of query keys; an auth context;
+> a small form hook that validates with the shared zod schemas; a UI kit (button, inputs,
+> table, modal, badge, tabs, toast, loading/empty/error states); the app frame with
+> role-aware navigation; the router with guards; and the three auth pages as the reference
+> implementation. Create every other page as a stub so the router compiles today.
+
+### 12.1 One door to the network
+
+```ts
+// apps/web/src/lib/api.ts — the ONLY place in the web app that calls fetch
+export const api = {
+  get:    <T>(path: string, params?: Params) => json<T>('GET', path, { params }),
+  post:   <T>(path: string, body?: unknown)  => json<T>('POST', path, { body: body ?? {} }),
+  patch:  <T>(path: string, body: unknown)   => json<T>('PATCH', path, { body }),
+  delete: <T = void>(path: string)           => json<T>('DELETE', path),
+  blob:   async (path: string) => (await send('GET', path)).blob(),
+};
+```
+
+Because every request goes through one function, these are solved once rather than twenty
+times: sending the cookie, JSON encoding, turning the API's error envelope into a typed
+`ApiError` with the server's stable `code`, and noticing a `401` anywhere in the app and
+dropping the user back to the login page.
+
+The development proxy is worth understanding because it removes a whole category of
+problem:
+
+```ts
+// vite.config.ts
+proxy: { '/api': { target: 'http://localhost:4000' } }
+```
+
+The browser only ever talks to `localhost:5173`. Vite forwards `/api/*` to the API. So in
+development the page and the API are the **same origin**, exactly as they will be in
+production behind a reverse proxy. No CORS headers to configure, and the `SameSite`
+cookie behaves in development the way it will behave for real users.
+
+### 12.2 Server state is not your state
+
+The most common React mistake: fetch in `useEffect`, store in `useState`, then spend the
+rest of the project keeping that copy in sync with the server. TanStack Query replaces all
+of it. A page asks for data by key:
+
+```ts
+useQuery({ queryKey: [...keys.workers, 'list', query], queryFn: () => api.get('/workers', query) })
+```
+
+and after a change, says which data is now stale:
+
+```ts
+onSuccess: () => invalidate(keys.workers, keys.dashboard)
+```
+
+The library refetches whatever is on screen. The lead pre-wrote **all** the top-level keys
+in one file (`lib/query.ts`) for a reason specific to delegation: approving a payroll run
+(Builder F's page) must refresh the dashboard (Builder D's page). If each builder invented
+their own keys, that cross-page invalidation would silently not happen. A shared list of
+names is the smallest possible contract that makes it work.
+
+### 12.3 The same schema on both sides
+
+```tsx
+const form = useZodForm(loginSchema, { email: '', password: '' });
+<form onSubmit={form.handleSubmit(async (data) => { await login(data); })}>
+  <Input label="Work email" type="email" {...form.field('email')} />
+```
+
+`loginSchema` is the *same object* the API validates with. The browser checks first for
+instant feedback; if the server still rejects the request, its field-level `details` are
+mapped onto the same inputs. The comment in the hook states the principle:
+
+> The browser check is a convenience — the server check is the real one.
+
+Never treat client-side validation as security. Anyone can call your API with `curl`.
+
+### 12.4 Guards are courtesy, not security
+
+```tsx
+<Route element={<RequireRole roles={ADMINS} />}>
+  <Route path="/audit" element={page(<AuditLogPage />)} />
+```
+
+The route guard and the role-aware sidebar decide what to *show*. They stop a manager
+landing on a page that would only tell them "forbidden". They are not what protects the
+audit log — the API's `requireAdmin` is. The comment sits right on the guard so nobody
+later "secures" something by hiding a link.
+
+### 12.5 A UI kit small enough to read
+
+Seven files in `components/ui/`. Two decisions worth copying:
+
+**The modal is the native `<dialog>` element.** The browser supplies the focus trap,
+Escape-to-close, the backdrop and the screen-reader semantics. Hand-rolled modals get at
+least one of those wrong.
+
+**Every status has its colour defined once.**
+
+```ts
+const STATUS_TONES: Record<string, BadgeTone> = {
+  active: 'green', approved: 'green', paid: 'green', …
+  pending: 'amber', pending_approval: 'amber', submitted: 'amber', …
+  rejected: 'red', terminated: 'red', void: 'red', …
+};
+```
+
+`<StatusBadge status={run.status} />` anywhere in the app. "Approved" is the same green on
+the payroll page, the expenses page and the dashboard, because no page gets to choose.
+
+### 12.6 A test that proves the wiring
+
+Three component tests on the login page, using a `mockFetch` helper that fails the test
+loudly on any request it was not told about. The interesting assertion:
+
+```ts
+await userEvent.type(screen.getByLabelText(/work email/i), '  Ada@Example.COM ');
+…
+// The shared schema trimmed and lower-cased the email before it left the browser.
+expect(login?.body).toEqual({ email: 'ada@example.com', password: 'wrong-password' });
+```
+
+It finds the input **by its label**, the way a person (or a screen reader) would. If that
+query fails, the form is inaccessible — the test doubles as an accessibility check.
+
+**Verification**
+
+```
+$ npx tsc -p apps/web          → exit 0
+$ npx vitest run               → 3 passed (3)
+$ npx vite build               → ✓ built in 19.38s   (index 420 kB / 131 kB gzip; each page its own chunk)
+```
+
+Note the build output: every page is a separate file of ~0.17 kB right now. They are
+stubs — but the *code-splitting* already works, so as pages become real, the login screen
+will not get heavier.
+
+*Commit `20ccb99` — feat(web): app shell.*
+
+**Lesson — "the shell first" is the frontend version of "the schema first".** Everything
+twenty pages would otherwise each decide for themselves — how to fetch, how to show an
+error, what a button looks like, what a query key is called — is decided once, and the
+decisions are *code the builders import*, not prose they might skim.
+
 <!-- JOURNAL:APPEND-BELOW -->
 
 ---
