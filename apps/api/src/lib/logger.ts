@@ -7,7 +7,7 @@ import { config } from '../config';
  * call site can forget.
  */
 export const logger = pino({
-  level: config.isTest ? 'silent' : config.isProduction ? 'info' : 'debug',
+  level: config.logLevel ?? (config.isTest ? 'silent' : config.isProduction ? 'info' : 'debug'),
   redact: {
     paths: ['req.headers.cookie', 'req.headers.authorization', 'res.headers["set-cookie"]'],
     remove: true,

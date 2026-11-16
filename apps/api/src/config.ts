@@ -23,6 +23,7 @@ const envSchema = z.object({
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(168),
   STORAGE_DIR: z.string().optional(),
+  LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'debug']).optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -44,5 +45,7 @@ export const config = Object.freeze({
   sessionTtlMs: env.SESSION_TTL_HOURS * 60 * 60 * 1000,
   inviteTtlMs: 7 * 24 * 60 * 60 * 1000,
   storageDir: env.STORAGE_DIR ?? path.join(repoRoot, 'apps/api/storage', isTest ? 'test' : 'dev'),
+  /** Explicit override; otherwise the logger picks a level per environment. */
+  logLevel: env.LOG_LEVEL,
   repoRoot,
 });
