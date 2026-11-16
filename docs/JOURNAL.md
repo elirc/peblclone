@@ -49,7 +49,21 @@ the commit it produced, so you can check out that commit and look at the code as
   - [10. Committing the foundation](#10-committing-the-foundation)
 - **Part III — Delegation**
   - [11. Preparing to delegate](#11-preparing-to-delegate)
-  - *(continues below as the build proceeds)*
+  - [12. The web shell](#12-the-web-shell)
+  - [13. Wave 1 comes back: reading three reports](#13-wave-1-comes-back-reading-three-reports)
+  - [14. Measure, then optimise: the slow test suite](#14-measure-then-optimise-the-slow-test-suite)
+  - [15. The journey test: proving the seams](#15-the-journey-test-proving-the-seams)
+  - [16. Seed data that cannot lie](#16-seed-data-that-cannot-lie)
+  - [17. The independent review, and the bug that was the lead's](#17-the-independent-review-and-the-bug-that-was-the-leads)
+- **Part IV — The frontend, and looking at the thing**
+  - [18. Wave 2: twenty pages, and the bugs only a browser finds](#18-wave-2-twenty-pages-and-the-bugs-only-a-browser-finds)
+  - [19. Where the bugs actually came from](#19-where-the-bugs-actually-came-from)
+  - [20. Where it stands, and what is still missing](#20-where-it-stands-and-what-is-still-missing)
+  - [Next entries](#next-entries)
+
+> **In a hurry?** Read chapter 11 (how to delegate), chapter 17 (the review that found a
+> 100× billing bug in the lead's own code) and chapter 19 (a table of every defect and
+> what actually found it).
 - **Appendices** — [Glossary](#appendix-a--glossary) ·
   [Command cheat-sheet](#appendix-b--command-cheat-sheet)
 
@@ -1924,7 +1938,490 @@ $ npm run db:seed -- --reset
 gross_pay | 463576 | Gross pay, Japan, September 2026 (¥700,000)      ← was 4636
 ```
 
-*Commit `fix: independent review findings`.*
+*Commit `843221a` — fix: independent review findings.*
+
+---
+
+# Part IV — The frontend, and looking at the thing
+
+## 18. Wave 2: twenty pages, and the bugs only a browser finds
+
+With the backend committed and reviewed, three more builders were started on the pages —
+"People UI", "Work UI", "Money UI" — using the same recipe: a common brief, a personal
+brief with an exact file list, the API contract as the specification, the shell from
+chapter 12 as the reference.
+
+One thing is worth noticing about what they were *not* given: the backend code. The
+frontend builders were told the API "is implemented; you do not need to read backend
+code". They built twenty pages against `docs/api-contract.md` and the shared DTO types
+alone. That is the contract earning its keep a second time.
+
+### 18.1 The reports
+
+| Builder | Pages | Component tests | Runs |
+| --- | --- | --- | --- |
+| D — People UI | dashboard, people, hire form, worker detail, calculator, countries | 17 | passed twice |
+| E — Work UI | contracts + signing, time off, expenses, worker portal | 19 | passed twice |
+| F — Money UI | payroll, invoices, payslips, team, settings, audit, organizations | 26 | passed twice |
+
+The lead ran the combined gate — everything together, for the first time:
+
+```
+$ npx tsc -p apps/web       → exit 0
+$ npx vitest run            → Test Files 14 passed (14) · Tests 76 passed (76)
+$ npx vite build            → ✓ built in 14.49s
+```
+
+### 18.2 Three builders, one complaint — and a bug in the shell
+
+All three reports contained the same two paragraphs, written independently:
+
+> **Tests can't open modals.** jsdom 25 has no `showModal()`/`close()`, and the kit's
+> `Modal` calls them. … it belongs in `test/setup.ts`. *(D)*
+
+> **No signed-in test helper:** `test/render.tsx` only has `signedOut`. Pages call
+> `useUser()`, which throws until `/auth/me` resolves… *(E)*
+
+Each builder obeyed the rule — *"if the shell is missing something you need, build it
+locally and report it"* — so the repository now had three private copies of the same
+dialog polyfill. That is the rule working as designed: no one edited a shared file under
+another builder's feet, and the lead learned exactly what the shell lacked. The polyfill
+was then moved into the shared test setup, once.
+
+**Lesson — when independent people report the same friction, the fault is upstream.**
+One builder working around something might be that builder. Three is the lead's shell.
+
+Builder F reported something sharper:
+
+> **Bug in `lib/format.ts`:** `formatBps` drops a real zero from whole percentages.
+> `formatBps(2000)` returns `"2%"` instead of `"20%"`, and 1000 gives `"1%"`. That would
+> misstate tax rates, so I used a local `formatRateBps`.
+
+The lead's code again. The offending line:
+
+```ts
+return `${(bps / 100).toFixed(bps % 100 === 0 ? 0 : 2).replace(/0$/, '')}%`;
+```
+
+The `.replace(/0$/, '')` was meant to tidy `"21.50"` into `"21.5"`. It also tidies `"20"`
+into `"2"`. A twenty-percent income tax displayed as two percent, on a payroll product.
+It was fixed with a table of cases that includes every shape the lead should have thought
+of the first time:
+
+```ts
+it.each([
+  [2000, '20%'], [1000, '10%'], [100, '1%'], [0, '0%'],
+  [2150, '21.5%'], [925, '9.25%'], [25, '0.25%'], [10_000, '100%'],
+])('%i bps -> %s', (bps, expected) => expect(formatBps(bps)).toBe(expected));
+```
+
+Notice the builder did not silently fix `lib/format.ts` (not its file), and did not
+silently use the broken function either. It worked around the problem locally **and
+said so**. A builder that quietly "just fixes" shared code hides the bug from everyone
+else who already depends on it; one that reports it gets it fixed for all of them.
+
+### 18.3 Somebody else is already on that port
+
+Time to actually run the app. Before starting a server, the lead checks whether the port
+is free — a habit learned from once spending an hour debugging a page that was being
+served by a *different project's* forgotten dev server:
+
+```
+$ netstat -ano | grep LISTENING | grep -E ":4000 |:5173 "
+  TCP    127.0.0.1:5173    LISTENING    31060
+
+PS> Get-CimInstance Win32_Process -Filter "ProcessId=31060" | select CommandLine
+"node" "C:\Users\Owner\Desktop\codereview\node_modules\.bin\..\vite\bin\vite.js" --port 5173 --strictPort
+```
+
+Port 5173 belongs to an unrelated project that has been running since the morning.
+There are two wrong moves available here. One is to kill it — it is not ours, and
+somebody is presumably using it. The other is to let Vite quietly pick the next free port:
+the API's CSRF check only accepts browser writes from the configured `WEB_ORIGIN`, so
+every form in the app would fail with a 403 and no obvious reason.
+
+The right move was to make the port a setting. The Vite config now reads the same
+root `.env` the API reads, so the two processes cannot disagree:
+
+```ts
+const env = loadEnv('development', path.resolve(import.meta.dirname, '../..'), '');
+const webPort = Number(new URL(env.WEB_ORIGIN ?? 'http://localhost:5173').port || 5173);
+```
+
+and a test that had `'http://localhost:5173'` typed into it now uses `config.webOrigin`.
+A hard-coded value in a test is a small lie about what the code depends on.
+
+**Lesson — check who owns a port before you use it, and never kill a process you did not
+start.**
+
+### 18.4 The sweep: looking at every page
+
+Nobody had seen the UI. Each builder said so plainly in its report:
+
+> I never saw the UI rendered; layout and the 375 px width are reasoned from the kit's
+> classes, not checked visually. *(E)*
+
+76 component tests say the pages *behave*. They say nothing about whether a page is
+usable, because jsdom does not do layout — it has no idea how wide anything is.
+
+> **Prompt (lead → assistant)**
+> Write a throwaway script, outside the repo, that drives a headless browser: log in as
+> each of four roles, visit every route at 1280 px and at 375 px, click into one detail
+> page of each kind, take a screenshot, and record for each page: console errors, page
+> errors, any HTTP 5xx, whether an error/stub/crash state is showing, and whether the
+> document is wider than the viewport. Print one line per page.
+
+(The script borrowed a browser-automation library already installed in another project
+on the machine, rather than adding a dependency to this one for a one-off check.)
+
+```
+ok admin      desk  /                          Dashboard
+ok admin      desk  /payroll/2305509d-…        November 2026 · Germany
+…
+XX admin      phone /time-off                  Time off        OVERFLOW+519
+XX admin      phone /expenses                  Expenses        OVERFLOW+409
+XX admin      phone /team                      Team            OVERFLOW+374
+XX admin      phone /payroll/2305509d-…        November 2026   OVERFLOW+495
+XX worker     phone /time-off                  Time off        OVERFLOW+255
+…
+```
+
+Good news first: across 56 combinations, **no crashes, no console errors, no server
+errors, no stub pages**. Every page rendered real data for every role.
+
+The bad news: seven pages scrolled sideways on a phone by hundreds of pixels.
+
+### 18.5 Debugging a layout bug by measuring, not guessing
+
+The obvious suspect was the tables — but the shared `Table` already wraps itself in
+`overflow-x-auto`, and several pages with wide tables were fine. So instead of staring at
+CSS, the lead had the assistant write a second tiny script that walks down the DOM from
+`<html>`, following the widest child, printing each element's width:
+
+```
+== /time-off
+<html> client=375 scroll=894 ovx=visible
+```
+
+One line. `<html>` is 894 px wide, and *none of its children are wider than 375*. That is
+a strange and very specific clue: something is making the document wide without being
+wide itself in normal flow. That is the signature of an **absolutely positioned**
+element — it is taken out of the layout its parent measures.
+
+What was absolutely positioned on these pages and not on the others?
+
+```
+$ grep -rn "sr-only" apps/web/src
+pages/expenses/ExpensesPage.tsx:308:      header: <span className="sr-only">Actions</span>,
+pages/payroll/PayrollRunDetailPage.tsx:233: header: <span className="sr-only">Breakdown</span>,
+…
+```
+
+There it is. The builders did something *good*: the last column of several tables is a
+column of buttons, and they gave it a header that is hidden visually but read aloud by
+screen readers (`sr-only`). That utility works by `position: absolute`. Sitting in the
+far-right column of a table 900 px wide, inside a scroll box that was not its
+"containing block", the invisible label escaped the scroll box and stretched the page.
+
+An accessibility improvement by the builders, combined with a missing `relative` in the
+lead's `Table`, produced a bug neither would have had alone. The fix is one word, in one
+place, and fixes all seven pages:
+
+```tsx
+// `relative` matters: visually-hidden (sr-only) content in a cell is absolutely
+// positioned. Without a positioned ancestor here it escapes this scroll box and
+// widens the whole PAGE on small screens.
+<div className="relative overflow-x-auto">
+```
+
+Re-running the sweep: 56 of 56 `ok`.
+
+**Lesson — get a measurement that narrows the search before you start changing things.**
+"The page is too wide" could be a hundred things. "The document is wide but no element in
+normal flow is" is one or two. Thirty lines of diagnostic script beat an hour of toggling
+CSS classes.
+
+**Lesson — fix it where it is shared.** Seven pages were broken; zero pages were edited.
+
+### 18.6 The bug that only clicking finds
+
+A sweep that *visits* pages is not the same as a person *using* them. So one more script:
+real clicks. Approve the pending German payroll run, pay the invoice, hire someone
+through the form, and — as the onboarding worker — sign a contract.
+
+The first three worked. (Two "failures" along the way turned out to be the test script's
+own mistakes: a selector that matched the sidebar's "Invoices" link instead of the invoice
+link, and a check that looked for the invite URL as text when the page shows it in a
+field. The lead confirmed the app was right by looking in the database before touching
+anything — `Nora | onboarding | NL | 5400000 | EUR` — rather than assuming the app was
+wrong because a script said so.)
+
+The fourth did not work, and this time it was not the script:
+
+```
+POST 200 /auth/login
+NAV  http://localhost:5273/
+NAV  http://localhost:5273/login        ← !
+FINAL http://localhost:5273/login
+```
+
+Login succeeds. The app navigates to the home page. And then it **bounces straight back
+to the login screen**, with no further request and no error. A user would type their
+password, watch the page flicker, and be asked to log in again.
+
+How had this survived 76 component tests *and* a sweep that logged in successfully eight
+times? Because of what the sweep did next: after logging in it called `page.goto(...)`,
+a full page reload, which re-asks the server "who am I?" and gets the right answer. The
+sweep never stayed on the page it landed on. Only the flow that *clicked a link* after
+login — as a human would — saw the bounce.
+
+The cause was in the lead's auth context:
+
+```ts
+const signIn = useCallback((user: SessionUser) => {
+  queryClient.clear();                        // ← start from a clean cache
+  queryClient.setQueryData(keys.me, user);    // ← record who is signed in
+  return user;
+}, []);
+```
+
+It reads sensibly: on login, wipe cached data from any previous user, then store the new
+one. But `clear()` destroys *every* query object, including the "who am I" query that the
+`AuthProvider` component is, at that moment, subscribed to. `setQueryData` then creates a
+brand-new query object — which nothing is listening to. The component keeps its
+subscription to a query that no longer exists, sees no user, and the route guard does its
+job and redirects to `/login`.
+
+The fix order matters, so here it is step by step.
+
+**1. Write a test that fails for the right reason.**
+
+```tsx
+it('knows who you are immediately after a successful login, without a reload', async () => {
+  …
+  await userEvent.click(screen.getByRole('button', { name: 'in' }));
+  await waitFor(() => expect(screen.getByTestId('who')).toHaveTextContent('ada@example.com'));
+});
+```
+
+```
+ × AuthProvider > knows who you are immediately after a successful login, without a reload
+ × AuthProvider > forgets you immediately after logout
+```
+
+**2. Notice the test is failing for *two* reasons.** The auth module imported a global
+`queryClient`, while the tests (correctly) give each test its own. So even a correct
+implementation would have failed this test. Two builders had already reported the same
+smell from the other side — *"`invalidate()` always targets the app's main query client,
+not the per-test client"* — and it had looked like a testing inconvenience. It was a
+design flaw: a component reaching for a global instead of the one it was given.
+
+**3. Fix both.** Use the client from context, and remove everything *except* the one
+query the component is mounted on:
+
+```ts
+const queryClient = useQueryClient();
+
+const dropCachedData = useCallback(() => {
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
+}, [queryClient]);
+```
+
+**4. Re-run everything**, then the browser flow:
+
+```
+ Test Files  15 passed (15) · Tests 78 passed (78)
+
+WORKER (onboarding): sign the contract
+  - contract signed
+  - portal checklist now shows 1 of 4 steps complete
+FLOW OK
+```
+
+The lead's own login test from chapter 12, incidentally, had three cases: validation
+error, wrong password, button disabled while pending. All three are *failure* paths.
+Nobody had tested that logging in **works**.
+
+**Lesson — test the happy path too.** It is easy to feel thorough because you tested the
+tricky failure cases. The most important behaviour of a login form is that it logs you in.
+
+**Lesson — know what your check cannot see.** jsdom cannot see layout. A sweep that
+reloads between pages cannot see client-side navigation bugs. Unit tests with factories
+cannot see seams. Each tool is blind somewhere, and bugs collect in the blind spots. The
+skill is not picking the best tool; it is knowing each tool's blind spot and covering it
+with a different one.
+
+*Commits `12b78ed`, `5a95556`, `af7b6b5` (one per frontend builder), `b096435`,
+`521e657` (shell fixes).*
+
+---
+
+## 19. Where the bugs actually came from
+
+It is worth stopping to count. Here is every real defect found during this build, who
+wrote the code, and — the interesting column — **what found it**.
+
+| # | Defect | Written by | Found by |
+| --- | --- | --- | --- |
+| 1 | Yen invoices under-billed 100× | lead + assistant | independent review |
+| 2 | Login bounces back to login page | lead + assistant | clicking through a real browser |
+| 3 | `formatBps(2000)` shows "2%" | lead + assistant | a builder using the function |
+| 4 | Team invite destroys a worker's portal invite | lead + assistant | independent review |
+| 5 | Malformed `X-Org-Id` → 500 | lead + assistant | independent review |
+| 6 | Tables widen the page on phones | lead (shell) × builders (pages) | headless sweep at 375 px |
+| 7 | Hire with an email that already has a login → dead invite | spec gap (lead) | builder's "known gaps" |
+| 8 | Cancelled hire keeps a working login | spec gap (lead) | builder's "known gaps" |
+| 9 | The fix for #7 only applied when an invite was sent | lead + assistant | independent review |
+| 10 | Deadlock: sign vs. cancel | builder A × builder B | independent review |
+| 11 | Stale read when voiding a signed contract | builder B | independent review |
+| 12 | Cancelled hire could keep an active contract | spec gap (lead) | independent review |
+| 13 | Search-escaping test that could not fail | builder A | builder A, re-reading its own test |
+| 14 | Recalculate did not release every expense the draft had claimed | builder C | a test builder C had just written |
+| 15 | Slow test suite (350 ms cleanup per test) | lead + assistant | builder B's report, then measurement |
+
+Read the "written by" column. **Most of the defects were in code the lead wrote or
+specifications the lead left incomplete** — the shared helpers, the shell, the reference
+module, the contract. The builders, working inside a tight specification with a reference
+to copy and a required test matrix, produced remarkably little that was wrong.
+
+That is not a story about humans versus AI — the lead's code was written with an AI too.
+It is a story about **constraints**. The builders had a contract, a schema, a reference
+module, an exact file list, a mandatory list of test categories and a required report
+format. The foundation had… the lead's confidence. Code written under strong constraints
+came out better than code written under none, whoever was typing.
+
+Now read the "found by" column. **Only one of the fifteen (#14) was caught by an automated
+test** — and that test had been written minutes earlier by the same builder. The rest were
+found by:
+
+- a reviewer who had not seen the code (7: #1, 4, 5, 9, 10, 11, 12),
+- builders being required to state their gaps and friction honestly (4: #3, 7, 8, 15),
+- looking at the running product in a browser (2: #2, 6),
+- an author asking "could this test even fail?" (1: #13).
+
+The 490 automated tests have a different job: they will catch the *next* person who
+breaks any of this. Every one of the fifteen now has a test with its name on it. Tests do
+not find the bugs you failed to imagine — they make sure that each bug, once imagined,
+stays dead.
+
+**Lesson — verification is layered because each layer catches a different kind of
+mistake.** Types catch shape errors. Unit tests catch logic errors in isolation.
+Integration tests catch wrong assumptions about the database. The journey test catches
+mismatched seams. Review catches what the author could not see. A browser catches what
+only exists when pixels are drawn and links are clicked. Skip a layer and you do not get
+"slightly less quality" — you get a whole category of bug shipping unopposed.
+
+---
+
+## 20. Where it stands, and what is still missing
+
+### 20.1 The state of the build
+
+```
+$ npm run typecheck      → exit 0 (shared, api, web)
+$ npm run format:check   → All matched files use Prettier code style!
+$ npm test
+  @meridian/shared   Test Files  2 passed  · Tests  27 passed
+  @meridian/api      Test Files 15 passed  · Tests 385 passed
+  @meridian/web      Test Files 15 passed  · Tests  78 passed
+$ npm run build          → exit 0
+$ npm run db:seed -- --reset   → demo company built through the real API
+UI sweep                 → 56 / 56 page × role × viewport combinations clean
+UI flow                  → approve payroll · pay invoice · hire · sign contract: OK
+```
+
+About 32,000 lines across 19 commits; twelve API modules, twenty pages, 490 tests. The
+CI workflow in `.github/workflows/ci.yml` runs the same gates — **but it has never
+actually run**, because this repository has not been pushed anywhere. It is written
+carefully and it is unverified, and those are two different things.
+
+### 20.2 Known gaps
+
+A "known gaps" list is not an admission of failure. It is the difference between a
+system whose limits are understood and one whose limits will be discovered by customers.
+These are real, and each names what a production version would need.
+
+**Product decisions the specification never made** (from the independent review):
+
+- **No back-pay.** A worker activated after their start month's payroll was already run
+  is not paid for those days; a period can only be run once. Needs an "adjustment" line
+  type or supplementary runs.
+- **Stranded expenses.** An expense approved after a leaver's final payroll run is never
+  reimbursed. Needs an off-cycle payment.
+- **Terminated workers** keep their login (deliberately, for payslips) but a few minor
+  write paths — uploading a document, ticking a checklist task — do not check their
+  status.
+- **One email, one login, one tenant.** A contractor cannot work for two client companies
+  under the same email address. A real platform separates *identity* (a person) from
+  *membership* (their role in a company).
+- **No four-eyes rule on payroll**: the admin who submits a run can approve it.
+
+**Engineering:**
+
+- **The login rate limiter lives in process memory.** It resets on restart and is not
+  shared between servers. Needs Redis or a database table before running more than one
+  instance.
+- **Tenant isolation is by convention plus tests** (ADR 0002). Postgres row-level security
+  would add a second, database-enforced layer.
+- **Files are stored on local disk**, with no antivirus scan. `storage.ts` is four
+  functions precisely so an object store can replace it.
+- **No email.** Invitation links are shown on screen.
+- **Payments are simulated.** "Pay invoice" and "mark paid" are buttons.
+- **Statutory rates are illustrative** flat percentages with caps — not tax advice, and
+  not how real payroll engines work.
+- **Public holidays are not modelled**; time off counts Monday–Friday.
+- **The API runs through `tsx`**; there is no production build or container image.
+- **The main JavaScript bundle is 670 kB** (197 kB gzipped). Pages are code-split, but
+  the shared chunk has grown and nobody has yet looked at why. It should be *measured*
+  (chapter 14) before anyone guesses.
+- **The deadlock regression test is a guard, not a proof** (chapter 17).
+- **Component tests cover the logic-heavy pages**, not all twenty. The payslips, audit,
+  organizations, settings, calculator and countries pages are covered only by the
+  browser sweep.
+- **CI has never run.**
+
+### 20.3 The method, on one page
+
+If you take one thing from this journal, take the *order of operations*:
+
+1. **Understand the domain** — make the AI explain it back and flag its doubts.
+2. **Write down what you will not build.**
+3. **Look up versions; pin what you do not know.**
+4. **Build everything shared yourself**: vocabulary, schema, cross-cutting rules, seams.
+5. **Build one complete reference** — code, tests and all — to the standard you want.
+6. **Write the contract** so precisely that two parties can build to it without meeting.
+7. **Delegate with briefs**: what to read, what you own, what is easy to get wrong, how to
+   verify, what to report. Disjoint files. Separate databases. One install.
+8. **Re-run every claim.** Read the ambiguities. Read the known gaps as a bug list.
+9. **Run it all together**, then write a test that crosses every seam.
+10. **Get a review from someone who has not seen it** — and do not tell them what you
+    suspect.
+11. **Look at it.** In a browser. On a phone. By clicking.
+12. **Write down what is still wrong.**
+
+None of those steps is about AI. Every one of them is what a good senior engineer does
+when leading a team of people. The agents changed the *speed* — a foundation, twelve
+modules, twenty pages and a review in one sitting — and that speed makes the discipline
+**more** necessary, not less: when code arrives ten times faster, an unchecked mistake
+reaches ten times further before anyone looks.
+
+The engineer's job did not disappear. It moved — from typing the code to deciding what
+is true: what the system must do, what "done" means, what was actually verified, and what
+is still not known.
+
+---
+
+## Next entries
+
+*This journal is meant to continue. Planned, in rough priority order:*
+
+- Push the repository and get the CI workflow green for real.
+- Investigate the 670 kB bundle with a bundle analyser — measure first.
+- Decide and implement the back-pay / off-cycle payment model.
+- Separate identity from membership so one person can belong to two tenants.
+- Row-level security as a second tenant-isolation layer.
+- A production build and container image for the API.
+- Promote the throwaway browser sweep into a committed end-to-end suite.
 
 <!-- JOURNAL:APPEND-BELOW -->
 
