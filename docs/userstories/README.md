@@ -107,6 +107,12 @@ Several of these close items on the known-gaps list in the build journal (chapte
 US-16 (former workers' write paths), US-19 (no four-eyes rule), US-20 (in-memory rate
 limiter).
 
+## Part 2
+
+Thirty more stories (US-21 to US-50), mid-level, in a different style: instead of the lines
+to change, each gives the system-design concept behind the task, the design options and
+their trade-offs, and hints. See [part2/README.md](part2/README.md).
+
 ## When you get stuck
 
 - **Find the nearest example.** Every pattern these stories need already exists
