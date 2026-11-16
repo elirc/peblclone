@@ -18,6 +18,7 @@ import {
   createManager,
   createPlatformAdmin,
   createTenant,
+  createUser,
   createWorker,
   loginAsWorker,
   type WorkerRow,
@@ -868,14 +869,21 @@ describe('review fixes', () => {
     expect(await db.select().from(documents)).toHaveLength(0);
   });
 
-  it('still allows that hire without an invite, but then refuses the invite', async () => {
+  it('refuses that hire even without an invite (they could never get portal access)', async () => {
     const { admin, adminUser } = await createTenant();
     const hired = await admin
       .post('/workers')
       .send({ ...hireBody, email: adminUser.email, sendInvite: false });
-    expect(hired.status).toBe(201);
+    expect(hired.status).toBe(409);
+    expect(hired.body.error.code).toBe('email_in_use');
+  });
 
-    const invite = await admin.post(`/workers/${hired.body.worker.id}/invite`);
+  it('refuses a later invite if the email gained a login in the meantime', async () => {
+    const { org, admin } = await createTenant();
+    const worker = await createWorker(org.id);
+    await createUser('client_manager', org.id, { email: worker.email });
+
+    const invite = await admin.post(`/workers/${worker.id}/invite`);
     expect(invite.status).toBe(409);
     expect(invite.body.error.code).toBe('email_in_use');
   });

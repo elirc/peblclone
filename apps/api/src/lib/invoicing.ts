@@ -78,7 +78,11 @@ export async function issueInvoiceForRun(
   const employees = headcount.find((h) => h.workerType === 'employee')?.n ?? 0;
   const contractors = headcount.find((h) => h.workerType === 'contractor')?.n ?? 0;
 
-  const toUsd = (localMinor: number) => convertMinor(localMinor, rate.perUsd, '1');
+  const toUsd = (localMinor: number) => convertMinor(
+      localMinor,
+      { currency: run.currency, perUsd: rate.perUsd },
+      { currency: 'USD', perUsd: '1' },
+    );
   const period = formatPeriod(run.periodYear, run.periodMonth);
   const local = (amountMinor: number) => formatMoney(amountMinor, run.currency);
 

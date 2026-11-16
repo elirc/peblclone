@@ -5,9 +5,8 @@ import { db } from '../db/client';
 import { organizations, users, workers } from '../db/schema';
 import { getActor } from '../lib/actor';
 import { badRequest, forbidden, notFound, unauthorized } from '../lib/errors';
+import { UUID_PATTERN } from '../lib/http';
 import { findSession, SESSION_COOKIE } from '../lib/sessions';
-
-const UUID = /^[0-9a-f-]{36}$/i;
 
 /**
  * Turn the session cookie into `req.actor`, or respond 401.
@@ -43,7 +42,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     // Platform admins belong to no tenant; they name the one they are working in.
     const header = req.get('x-org-id');
     if (header) {
-      if (!UUID.test(header)) throw badRequest('X-Org-Id must be a UUID');
+      if (!UUID_PATTERN.test(header)) throw badRequest('X-Org-Id must be a UUID');
       const [org] = await db
         .select({ id: organizations.id })
         .from(organizations)

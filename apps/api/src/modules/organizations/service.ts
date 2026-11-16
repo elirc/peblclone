@@ -133,6 +133,18 @@ export async function inviteTeamMember(
     .limit(1);
   if (existing) throw conflict('A user with this email already exists', 'email_taken');
 
+  // One email = one login = one role. Someone who is a worker here gets a WORKER
+  // login; making them a teammate as well would strand their worker record
+  // (found in review: journal chapter 17).
+  const [asWorker] = await db
+    .select({ id: workers.id })
+    .from(workers)
+    .where(and(eq(workers.organizationId, orgId), eq(workers.email, input.email)))
+    .limit(1);
+  if (asWorker) {
+    throw conflict('This email belongs to one of your workers', 'email_belongs_to_worker');
+  }
+
   return db.transaction(async (tx) => {
     // Re-inviting replaces any earlier unaccepted invite for the same address,
     // so there is only ever one live link per person.
@@ -143,6 +155,8 @@ export async function inviteTeamMember(
           eq(invitations.organizationId, orgId),
           eq(invitations.email, input.email),
           isNull(invitations.acceptedAt),
+          // Team invites only: never delete a worker's portal invite from here.
+          isNull(invitations.workerId),
         ),
       );
     const { invite, acceptUrl } = await createInvitation(tx, {

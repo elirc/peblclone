@@ -295,7 +295,22 @@ async function transition(
   const to = ACTION_TARGET[action];
 
   return db.transaction(async (tx) => {
-    const { row: before, workerName, workerStatus } = await loadVisible(tx, actor, contractId);
+    const { row: before, workerName } = await loadVisible(tx, actor, contractId);
+
+    // Lock order: WORKER first, then contract — the same order the workers
+    // module uses when it cancels a hire. Two transactions that take the same
+    // locks in opposite orders can deadlock (Postgres kills one, which the
+    // client sees as a 500); taking them in one agreed order makes them queue
+    // instead. Reading the status under the lock also means the `after` hooks
+    // act on current facts, not on a stale read.
+    const [lockedWorker] = await tx
+      .select({ status: workers.status })
+      .from(workers)
+      .where(and(eq(workers.id, before.workerId), eq(workers.organizationId, orgId)))
+      .for('update');
+    if (!lockedWorker) throw notFound('Contract');
+    const workerStatus = lockedWorker.status;
+
     if (!canTransition(CONTRACT_TRANSITIONS, before.status, to)) {
       throw conflict(
         `Cannot ${action} a contract that is ${before.status}`,

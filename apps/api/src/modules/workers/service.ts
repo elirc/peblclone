@@ -313,9 +313,13 @@ export async function createWorker(
       await completeOnboardingTask(tx, worker.id, 'documents_verified', actor.userId);
     }
 
+    // Checked whether or not an invite is sent now: a worker who can never be
+    // given portal access can never sign their contract, so they would be stuck
+    // in onboarding forever. Better to refuse the hire with a clear reason.
+    await assertEmailHasNoLogin(tx, worker.email);
+
     let acceptUrl: string | null = null;
     if (input.sendInvite) {
-      await assertEmailHasNoLogin(tx, worker.email);
       const created = await createInvitation(tx, {
         organizationId: orgId,
         email: worker.email,
@@ -495,6 +499,20 @@ export async function transitionWorker(
           ),
         )
         .returning({ id: contracts.id });
+      // An admin may have countersigned early. An active contract cannot be
+      // voided (see CONTRACT_TRANSITIONS), so it is terminated instead.
+      const ended = await tx
+        .update(contracts)
+        .set({ status: 'terminated', terminatedAt: new Date() })
+        .where(
+          and(
+            eq(contracts.workerId, workerId),
+            eq(contracts.organizationId, orgId),
+            eq(contracts.status, 'active'),
+          ),
+        )
+        .returning({ id: contracts.id });
+      effects.contractsTerminated = ended.length;
       const revoked = await tx
         .delete(invitations)
         .where(
@@ -510,8 +528,9 @@ export async function transitionWorker(
 
       // If they had already accepted their invite, the portal login must die with
       // the hire: deactivate it and end its sessions now, in this transaction.
-      // (A TERMINATED worker deliberately keeps read access — they still need
-      // their final payslip. Every write path already requires an active worker.)
+      // (A TERMINATED worker deliberately keeps their login — they still need
+      // their final payslip. Time off and expenses refuse them; a few minor write
+      // paths, e.g. uploading a document, do not check status. Known gap.)
       if (current.userId) {
         await tx.update(users).set({ isActive: false }).where(eq(users.id, current.userId));
         await deleteUserSessions(tx, current.userId);

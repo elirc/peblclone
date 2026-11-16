@@ -26,7 +26,7 @@ export function parseQuery<S extends z.ZodType>(schema: S, req: Request): z.infe
   return result.data;
 }
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Read a UUID path parameter. A malformed id is a 400 here rather than a
@@ -34,7 +34,7 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
  */
 export function uuidParam(req: Request, name = 'id'): string {
   const value = req.params[name];
-  if (typeof value !== 'string' || !UUID.test(value)) {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
     throw validationError({ [name]: ['Expected a UUID'] });
   }
   return value;

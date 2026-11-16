@@ -28,22 +28,40 @@ export function monthlyFromAnnual(annualMinor: number): number {
   return roundHalfUp(annualMinor / 12);
 }
 
+const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND', 'CLP']);
+
+/** How many decimal places a currency's minor unit has: USD 2 (cents), JPY 0 (yen has no cents). */
+export function minorUnitDigits(currency: string): number {
+  return ZERO_DECIMAL_CURRENCIES.has(currency) ? 0 : 2;
+}
+
 /**
- * Convert between currencies given "units of currency per 1 USD" rates.
+ * Convert an amount in one currency's MINOR units to another currency's MINOR units.
+ * Each side is a currency code plus its "units of currency per 1 USD" rate.
+ *
+ * An FX rate relates MAJOR units (1 USD = 151 JPY), but our amounts are minor
+ * units, and currencies disagree about what a minor unit is: 1 USD = 100 cents,
+ * while 1 JPY is already the smallest unit. So the conversion has three steps:
+ * minor -> major (source), apply the rate, major -> minor (target).
+ *
+ * The first version of this function skipped steps one and three. That is
+ * harmless between two 2-decimal currencies (the factors cancel) and silently
+ * wrong by 100x for yen. See journal chapter 17.
+ *
  * Rates arrive as decimal strings from Postgres `numeric`; we multiply as numbers,
  * which is fine at invoice magnitudes (well inside 2^53) and round once at the end.
  */
-export function convertMinor(amountMinor: number, fromPerUsd: string, toPerUsd: string): number {
-  const from = Number(fromPerUsd);
-  const to = Number(toPerUsd);
-  if (!(from > 0) || !(to > 0)) throw new Error('FX rate must be a positive number');
-  return roundHalfUp((amountMinor / from) * to);
-}
-
-const ZERO_DECIMAL_CURRENCIES = new Set(['JPY', 'KRW', 'VND', 'CLP']);
-
-export function minorUnitDigits(currency: string): number {
-  return ZERO_DECIMAL_CURRENCIES.has(currency) ? 0 : 2;
+export function convertMinor(
+  amountMinor: number,
+  from: { currency: string; perUsd: string },
+  to: { currency: string; perUsd: string },
+): number {
+  const fromRate = Number(from.perUsd);
+  const toRate = Number(to.perUsd);
+  if (!(fromRate > 0) || !(toRate > 0)) throw new Error('FX rate must be a positive number');
+  const major = amountMinor / 10 ** minorUnitDigits(from.currency);
+  const convertedMajor = (major / fromRate) * toRate;
+  return roundHalfUp(convertedMajor * 10 ** minorUnitDigits(to.currency));
 }
 
 /** Human-readable money, e.g. formatMoney(123456, 'EUR') -> "€1,234.56". */

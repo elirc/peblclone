@@ -20,9 +20,18 @@ describe('money', () => {
     expect(applyBps(333, 5000)).toBe(167); // 166.5 rounds up
   });
   it('converts through USD', () => {
+    const usd = { currency: 'USD', perUsd: '1' };
     // 920 EUR -> USD at 0.92 EUR per USD = 1000 USD
-    expect(convertMinor(92_000, '0.92', '1')).toBe(100_000);
-    expect(() => convertMinor(1, '0', '1')).toThrow();
+    expect(convertMinor(92_000, { currency: 'EUR', perUsd: '0.92' }, usd)).toBe(100_000);
+    expect(() => convertMinor(1, { currency: 'EUR', perUsd: '0' }, usd)).toThrow();
+  });
+  it('accounts for currencies with no minor unit (yen)', () => {
+    const usd = { currency: 'USD', perUsd: '1' };
+    const jpy = { currency: 'JPY', perUsd: '151' };
+    // 151,000 yen is $1,000.00 = 100,000 cents. (Not 1,000 cents: yen has no "cents".)
+    expect(convertMinor(151_000, jpy, usd)).toBe(100_000);
+    // ...and back: $1,000.00 is 151,000 yen.
+    expect(convertMinor(100_000, usd, jpy)).toBe(151_000);
   });
   it('formats and parses', () => {
     expect(formatMoney(123_456, 'USD')).toBe('$1,234.56');

@@ -47,6 +47,9 @@ Base path: `/api/v1`. JSON in, JSON out. This document plus
 | DELETE | `/team/invites/:id` | admin | → 204 |
 | PATCH | `/team/:id` | admin | `updateTeamMemberSchema` → `TeamMemberDto` |
 
+Team invites: `409 email_taken` if the email has a login; `409 email_belongs_to_worker` if it
+is one of the organization's workers. Re-inviting replaces earlier *team* invites only.
+
 ---
 
 ## Countries & quotes — module `countries`
@@ -87,6 +90,9 @@ Rules
     `eorSupported` (`400 eor_not_supported`).
   - `currency` is copied from the country; status starts as `onboarding`.
   - duplicate `(organization, email)` → `409 worker_email_taken` (from the unique index).
+  - the email already has a login anywhere in Meridian → `409 email_in_use`, whether or not
+    an invite is requested (one email = one login; such a worker could never reach the
+    portal to sign). *Added after review.*
   - create the onboarding checklist from `ONBOARDING_TASK_TEMPLATES` (`lib/onboarding.ts`).
   - create one `requested` document per `country.requiredDocuments`
     (title = `DOCUMENT_KIND_LABELS[kind]`). If the country requires none, complete the
@@ -106,10 +112,12 @@ Rules
   - `→ offboarding` requires `endDate` (`400`), which must be ≥ `startDate`; stores it.
   - `offboarding → active` (rescind) clears `endDate`.
   - `offboarding → terminated`: also sets the worker's `active` contract to `terminated`.
-  - `onboarding → cancelled`: voids any `draft|sent|signed` contract and deletes the
-    worker's unaccepted invitations.
+  - `onboarding → cancelled`: voids any `draft|sent|signed` contract, terminates an
+    `active` one, deletes the worker's unaccepted invitations, and deactivates their
+    portal login (ending its sessions). A *terminated* worker keeps their login.
   - audit `worker.status_changed` `{ from, to, reason }`.
-- **Invite**: `409 already_has_access` if the worker has a `userId`; replaces earlier
+- **Invite**: `409 already_has_access` if the worker has a `userId`; `409 email_in_use` if
+  the email has since gained another login; replaces earlier
   unaccepted invitations for that worker; refused for `terminated`/`cancelled` workers (`409`).
 - **Complete task**: the task must be in the actor's tenant (and, for a worker, their own).
   - `automatic` tasks → `409 task_is_automatic`.
@@ -279,7 +287,8 @@ Rules
 
 Rules
 - **Issuing** (called from payroll approve; lives in `apps/api/src/lib/invoicing.ts`):
-  - always billed in **USD**. Convert each local total with `convertMinor(local, perUsd, '1')`
+  - always billed in **USD**. Convert each local total with `convertMinor` (which accounts
+    for currencies with no minor unit, e.g. JPY)
     using `fx_rates` for the run currency; freeze that rate in `fxRate` / `localCurrency`.
     Missing rate → `409 fx_rate_missing`.
   - lines: `gross_pay`, `employer_cost` (omit if 0), `reimbursement` (omit if 0), and
