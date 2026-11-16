@@ -170,6 +170,13 @@ export interface WorkerDetailDto extends WorkerDto {
   tasks: OnboardingTaskDto[];
 }
 
+/** Response of POST /onboarding-tasks/:id/complete. */
+export interface OnboardingTaskCompletedDto {
+  task: OnboardingTaskDto;
+  /** The worker's status afterwards — `active` if this was the last task. */
+  workerStatus: WorkerStatus;
+}
+
 /** Response of POST /workers. `acceptUrl` is present when an invite was created. */
 export interface WorkerCreatedDto {
   worker: WorkerDetailDto;
