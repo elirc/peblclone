@@ -81,10 +81,17 @@ describe('grossForPeriod', () => {
   });
 
   it('pays nothing before the start date or after the end date', () => {
-    expect(grossForPeriod({ ...base, startDate: '2026-07-01', year: 2026, month: 6 }).grossMinor).toBe(0);
     expect(
-      grossForPeriod({ ...base, startDate: '2025-01-01', endDate: '2026-01-31', year: 2026, month: 2 })
-        .daysWorked,
+      grossForPeriod({ ...base, startDate: '2026-07-01', year: 2026, month: 6 }).grossMinor,
+    ).toBe(0);
+    expect(
+      grossForPeriod({
+        ...base,
+        startDate: '2025-01-01',
+        endDate: '2026-01-31',
+        year: 2026,
+        month: 2,
+      }).daysWorked,
     ).toBe(0);
   });
 
@@ -147,18 +154,33 @@ describe('calculatePayslip', () => {
 describe('leaveEntitlementForYear', () => {
   it('gives the full entitlement for a full year', () => {
     expect(
-      leaveEntitlementForYear({ annualLeaveDays: 20, startDate: '2024-03-01', endDate: null, year: 2026 }),
+      leaveEntitlementForYear({
+        annualLeaveDays: 20,
+        startDate: '2024-03-01',
+        endDate: null,
+        year: 2026,
+      }),
     ).toBe(20);
   });
   it('prorates by months employed, to the nearest half day', () => {
     // July–December = 6 months of 25 days = 12.5
     expect(
-      leaveEntitlementForYear({ annualLeaveDays: 25, startDate: '2026-07-10', endDate: null, year: 2026 }),
+      leaveEntitlementForYear({
+        annualLeaveDays: 25,
+        startDate: '2026-07-10',
+        endDate: null,
+        year: 2026,
+      }),
     ).toBe(12.5);
   });
   it('is zero for a year entirely outside employment', () => {
     expect(
-      leaveEntitlementForYear({ annualLeaveDays: 25, startDate: '2027-01-01', endDate: null, year: 2026 }),
+      leaveEntitlementForYear({
+        annualLeaveDays: 25,
+        startDate: '2027-01-01',
+        endDate: null,
+        year: 2026,
+      }),
     ).toBe(0);
   });
 });

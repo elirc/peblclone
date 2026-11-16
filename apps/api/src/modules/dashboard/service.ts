@@ -86,7 +86,9 @@ async function pendingCounts(orgId: string): Promise<DashboardDto['pending']> {
       db
         .select({ n: count() })
         .from(timeOffRequests)
-        .where(and(eq(timeOffRequests.organizationId, orgId), eq(timeOffRequests.status, 'pending'))),
+        .where(
+          and(eq(timeOffRequests.organizationId, orgId), eq(timeOffRequests.status, 'pending')),
+        ),
     ),
     countWhere(
       db
@@ -98,7 +100,9 @@ async function pendingCounts(orgId: string): Promise<DashboardDto['pending']> {
       db
         .select({ n: count() })
         .from(payrollRuns)
-        .where(and(eq(payrollRuns.organizationId, orgId), eq(payrollRuns.status, 'pending_approval'))),
+        .where(
+          and(eq(payrollRuns.organizationId, orgId), eq(payrollRuns.status, 'pending_approval')),
+        ),
     ),
     countWhere(
       db

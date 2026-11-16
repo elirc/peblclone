@@ -23,7 +23,9 @@ export function AuthLayout({
           <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{title}</h1>
           {subtitle && <p className="mt-2 text-sm text-ink-500">{subtitle}</p>}
         </div>
-        <div className="rounded-xl border border-ink-200 bg-white p-6 shadow-sm sm:p-8">{children}</div>
+        <div className="rounded-xl border border-ink-200 bg-white p-6 shadow-sm sm:p-8">
+          {children}
+        </div>
         {footer && <p className="mt-6 text-center text-sm text-ink-500">{footer}</p>}
       </div>
     </div>

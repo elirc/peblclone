@@ -105,7 +105,10 @@ export async function createUser(
 }
 
 /** Create a session for a user and return a logged-in client. */
-export async function loginAs(user: UserRow, headers: Record<string, string> = {}): Promise<TestClient> {
+export async function loginAs(
+  user: UserRow,
+  headers: Record<string, string> = {},
+): Promise<TestClient> {
   const token = await createSession(db, user.id, 'vitest');
   return client(token, headers);
 }

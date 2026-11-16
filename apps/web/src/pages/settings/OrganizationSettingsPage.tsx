@@ -21,7 +21,10 @@ export default function OrganizationSettingsPage() {
 
   return (
     <>
-      <PageHeader title="Organization settings" description="Your company's details as they appear on invoices." />
+      <PageHeader
+        title="Organization settings"
+        description="Your company's details as they appear on invoices."
+      />
       {organization.isPending ? (
         <Loading label="Loading organization…" />
       ) : organization.isError ? (
@@ -58,11 +61,15 @@ function OrganizationForm({ organization }: { organization: OrganizationDto }) {
     toast.success('Organization details saved');
   });
 
-  const countryKnown = countries.data?.items.some((c) => c.code === form.values.countryCode) ?? false;
+  const countryKnown =
+    countries.data?.items.some((c) => c.code === form.values.countryCode) ?? false;
 
   return (
     <Card className="max-w-2xl">
-      <CardHeader title="Company details" description={`Customer since ${formatDate(organization.createdAt)}`} />
+      <CardHeader
+        title="Company details"
+        description={`Customer since ${formatDate(organization.createdAt)}`}
+      />
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         {form.formError && <Alert tone="error">{form.formError}</Alert>}
         <Input label="Display name" required autoComplete="organization" {...form.field('name')} />

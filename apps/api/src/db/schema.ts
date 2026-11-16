@@ -88,7 +88,10 @@ export const countries = pgTable('countries', {
     .$type<ContributionRule[]>()
     .notNull()
     .default([]),
-  employeeDeductions: jsonb('employee_deductions').$type<ContributionRule[]>().notNull().default([]),
+  employeeDeductions: jsonb('employee_deductions')
+    .$type<ContributionRule[]>()
+    .notNull()
+    .default([]),
   monthlyFeeUsdMinor: money('monthly_fee_usd_minor').notNull().default(59_900),
   annualLeaveDays: integer('annual_leave_days').notNull().default(20),
   noticePeriodDays: integer('notice_period_days').notNull().default(30),
@@ -153,7 +156,10 @@ export const sessions = pgTable(
     userAgent: text('user_agent'),
     createdAt: createdAt(),
   },
-  (t) => [uniqueIndex('sessions_token_hash_unique').on(t.tokenHash), index('sessions_user_idx').on(t.userId)],
+  (t) => [
+    uniqueIndex('sessions_token_hash_unique').on(t.tokenHash),
+    index('sessions_user_idx').on(t.userId),
+  ],
 );
 
 // ---------- workers ----------

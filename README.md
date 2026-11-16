@@ -34,13 +34,13 @@ npm run dev                     # API on :4000, web on :5173
 
 Demo logins (password for all: `meridian-demo-1`):
 
-| Role | Email |
-| --- | --- |
-| Client admin | `admin@acme.test` |
-| Client manager | `manager@acme.test` |
-| Worker (active) | `lena.fischer@acme.test` |
-| Worker (onboarding) | `diego.ramirez@acme.test` |
-| Platform admin (Meridian staff) | `ops@meridian.test` |
+| Role                            | Email                     |
+| ------------------------------- | ------------------------- |
+| Client admin                    | `admin@acme.test`         |
+| Client manager                  | `manager@acme.test`       |
+| Worker (active)                 | `lena.fischer@acme.test`  |
+| Worker (onboarding)             | `diego.ramirez@acme.test` |
+| Platform admin (Meridian staff) | `ops@meridian.test`       |
 
 ## Verify it
 

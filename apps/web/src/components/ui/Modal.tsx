@@ -18,7 +18,15 @@ interface ModalProps {
  * Escape-to-close, the backdrop and correct screen-reader semantics, so we do
  * not re-implement (and subtly break) any of them.
  */
-export function Modal({ open, onClose, title, description, children, footer, size = 'md' }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  footer,
+  size = 'md',
+}: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 

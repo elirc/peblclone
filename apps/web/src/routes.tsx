@@ -137,7 +137,9 @@ export function AppRoutes() {
 
           <Route
             path="*"
-            element={<EmptyState title="Page not found" description="That address does not exist." />}
+            element={
+              <EmptyState title="Page not found" description="That address does not exist." />
+            }
           />
         </Route>
       </Route>

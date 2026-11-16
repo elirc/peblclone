@@ -3,11 +3,18 @@ import { Badge, StatusBadge } from '../../components/ui';
 import { todayLocal } from '../../lib/format';
 
 /** An unpaid invoice past its due date is worth shouting about. */
-export function isOverdue(invoice: Pick<InvoiceDto, 'status' | 'dueDate'>, today = todayLocal()): boolean {
+export function isOverdue(
+  invoice: Pick<InvoiceDto, 'status' | 'dueDate'>,
+  today = todayLocal(),
+): boolean {
   return invoice.status === 'issued' && invoice.dueDate < today;
 }
 
-export function InvoiceStatusBadge({ invoice }: { invoice: Pick<InvoiceDto, 'status' | 'dueDate'> }) {
+export function InvoiceStatusBadge({
+  invoice,
+}: {
+  invoice: Pick<InvoiceDto, 'status' | 'dueDate'>;
+}) {
   return (
     <span className="inline-flex flex-wrap gap-1.5">
       <StatusBadge status={invoice.status} />

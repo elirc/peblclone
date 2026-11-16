@@ -43,12 +43,15 @@ contractsRouter.post('/contracts/:id/recall', authenticate, requireStaff, async 
 
 // Only the worker signs their own contract — a client admin "signing for" an
 // employee would make the signature meaningless.
-contractsRouter.post('/contracts/:id/sign', authenticate, requireRole('worker'), async (req, res) => {
-  const input = parseBody(signContractSchema, req);
-  res.json(
-    await service.signContract(getActor(req), uuidParam(req), input, req.ip ?? 'unknown'),
-  );
-});
+contractsRouter.post(
+  '/contracts/:id/sign',
+  authenticate,
+  requireRole('worker'),
+  async (req, res) => {
+    const input = parseBody(signContractSchema, req);
+    res.json(await service.signContract(getActor(req), uuidParam(req), input, req.ip ?? 'unknown'));
+  },
+);
 
 contractsRouter.post('/contracts/:id/activate', authenticate, requireAdmin, async (req, res) => {
   res.json(await service.activateContract(getActor(req), uuidParam(req)));

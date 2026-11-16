@@ -5,10 +5,18 @@ import type {
   RegisterInput,
   SessionUser,
 } from '@meridian/shared';
-import { useQuery } from '@tanstack/react-query';
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { api, getActingOrgId, isApiError, setActingOrgId, setUnauthorizedHandler } from './api';
-import { keys, queryClient } from './query';
+import { keys } from './query';
 
 interface AuthContextValue {
   /** null = definitely logged out. */
@@ -39,20 +47,37 @@ async function fetchMe(): Promise<SessionUser | null> {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const { data, isLoading } = useQuery({ queryKey: keys.me, queryFn: fetchMe, staleTime: 60_000 });
   const [actingOrgId, setActingOrgState] = useState<string | null>(() => getActingOrgId());
 
   // If any request anywhere returns 401 (session expired / revoked), drop to logged-out.
   useEffect(() => {
     setUnauthorizedHandler(() => queryClient.setQueryData(keys.me, null));
-  }, []);
+  }, [queryClient]);
+
+  /**
+   * Throw away every cached answer EXCEPT 'who am I'.
+   *
+   * Not queryClient.clear(): that removes the 'me' query object too, while this
+   * component is still subscribed to it. A later setQueryData then creates a NEW
+   * query that nothing is listening to, so the app keeps believing nobody is
+   * signed in and bounces the user back to the login page. (That was a real bug
+   * here, found only by clicking through a real browser. Journal chapter 18.)
+   */
+  const dropCachedData = useCallback(() => {
+    queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
+  }, [queryClient]);
 
   /** After any change of identity or tenant, every cached answer is suspect: start clean. */
-  const signIn = useCallback((user: SessionUser) => {
-    queryClient.clear();
-    queryClient.setQueryData(keys.me, user);
-    return user;
-  }, []);
+  const signIn = useCallback(
+    (user: SessionUser) => {
+      dropCachedData();
+      queryClient.setQueryData(keys.me, user);
+      return user;
+    },
+    [queryClient, dropCachedData],
+  );
 
   const value = useMemo<AuthContextValue>(() => {
     const user = data ?? null;
@@ -60,7 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       user,
       isLoading,
       login: async (input) => signIn((await api.post<AuthResponse>('/auth/login', input)).user),
-      register: async (input) => signIn((await api.post<AuthResponse>('/auth/register', input)).user),
+      register: async (input) =>
+        signIn((await api.post<AuthResponse>('/auth/register', input)).user),
       acceptInvite: async (input) =>
         signIn((await api.post<AuthResponse>('/auth/accept-invite', input)).user),
       logout: async () => {
@@ -69,7 +95,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } finally {
           setActingOrgId(null);
           setActingOrgState(null);
-          queryClient.clear();
+          dropCachedData();
           queryClient.setQueryData(keys.me, null);
         }
       },
@@ -78,13 +104,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setActingOrgId(orgId);
         setActingOrgState(orgId);
         // Different tenant = different data for every query.
-        const me = queryClient.getQueryData(keys.me);
-        queryClient.clear();
-        queryClient.setQueryData(keys.me, me);
+        dropCachedData();
       },
       hasOrgContext: Boolean(user && (user.organizationId || actingOrgId)),
     };
-  }, [data, isLoading, actingOrgId, signIn]);
+  }, [data, isLoading, actingOrgId, signIn, queryClient, dropCachedData]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

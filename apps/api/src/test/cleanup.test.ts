@@ -39,7 +39,9 @@ describe('test database cleanup', () => {
       );
       expect(rows.rows[0]?.n, table).toBe(0);
     }
-    const countries = await db.execute<{ n: number }>(sql`select count(*)::int as n from countries`);
+    const countries = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from countries`,
+    );
     expect(countries.rows[0]?.n).toBeGreaterThan(0);
   });
 });

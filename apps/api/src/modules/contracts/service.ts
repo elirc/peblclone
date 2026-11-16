@@ -312,10 +312,7 @@ async function transition(
     const workerStatus = lockedWorker.status;
 
     if (!canTransition(CONTRACT_TRANSITIONS, before.status, to)) {
-      throw conflict(
-        `Cannot ${action} a contract that is ${before.status}`,
-        'invalid_transition',
-      );
+      throw conflict(`Cannot ${action} a contract that is ${before.status}`, 'invalid_transition');
     }
     options.check?.(before, workerName);
 
@@ -331,7 +328,10 @@ async function transition(
       )
       .returning();
     if (!row) {
-      throw conflict('The contract was changed by someone else; reload and retry', 'invalid_transition');
+      throw conflict(
+        'The contract was changed by someone else; reload and retry',
+        'invalid_transition',
+      );
     }
 
     await options.after?.(tx, before, workerStatus);

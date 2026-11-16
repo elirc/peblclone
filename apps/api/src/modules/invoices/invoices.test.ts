@@ -31,7 +31,8 @@ async function approvedRun(t: Tenant, period = { periodYear: 2026, periodMonth: 
   return { runId: approved.body.id as string, invoiceId: approved.body.invoiceId as string };
 }
 
-const lineAmounts = (lines: Line[]) => Object.fromEntries(lines.map((l) => [l.kind, l.amountMinor]));
+const lineAmounts = (lines: Line[]) =>
+  Object.fromEntries(lines.map((l) => [l.kind, l.amountMinor]));
 
 describe('issuing an invoice on payroll approval', () => {
   it('bills a German full-month run in USD with hand-computed amounts', async () => {
@@ -62,7 +63,11 @@ describe('issuing an invoice on payroll approval', () => {
       organizationName: t.org.name,
     });
     expect(Number(res.body.fxRate)).toBe(0.92);
-    expect(res.body.lines.map((l: Line) => l.kind)).toEqual(['gross_pay', 'employer_cost', 'platform_fee']);
+    expect(res.body.lines.map((l: Line) => l.kind)).toEqual([
+      'gross_pay',
+      'employer_cost',
+      'platform_fee',
+    ]);
     expect(lineAmounts(res.body.lines)).toEqual({
       gross_pay: 543_478,
       employer_cost: 111_685,
@@ -106,7 +111,11 @@ describe('issuing an invoice on payroll approval', () => {
     const res = await t.admin.get(`/invoices/${invoiceId}`);
     expect(res.body.lines.map((l: Line) => l.kind)).toEqual(['gross_pay', 'platform_fee']);
     // 400,000 / 0.92 = 434,782.61 -> 434,783; contractor fee is a flat $49.00.
-    expect(res.body).toMatchObject({ subtotalMinor: 434_783, feeMinor: 4_900, totalMinor: 439_683 });
+    expect(res.body).toMatchObject({
+      subtotalMinor: 434_783,
+      feeMinor: 4_900,
+      totalMinor: 439_683,
+    });
   });
 
   it('charges the country fee per employee plus the contractor fee per contractor', async () => {
@@ -128,8 +137,12 @@ describe('issuing an invoice on payroll approval', () => {
     const second = await approvedRun(t, { periodYear: 2026, periodMonth: 2 });
 
     const year = new Date().getUTCFullYear();
-    expect((await t.admin.get(`/invoices/${first.invoiceId}`)).body.number).toBe(`INV-${year}-001001`);
-    expect((await t.admin.get(`/invoices/${second.invoiceId}`)).body.number).toBe(`INV-${year}-001002`);
+    expect((await t.admin.get(`/invoices/${first.invoiceId}`)).body.number).toBe(
+      `INV-${year}-001001`,
+    );
+    expect((await t.admin.get(`/invoices/${second.invoiceId}`)).body.number).toBe(
+      `INV-${year}-001002`,
+    );
 
     const logs = await db.select().from(auditLogs).where(eq(auditLogs.action, 'invoice.issued'));
     expect(logs.map((l) => l.entityId).sort()).toEqual([first.invoiceId, second.invoiceId].sort());

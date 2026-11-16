@@ -17,14 +17,7 @@ import {
 import { and, asc, count, desc, eq, inArray, isNull, ne, type SQL } from 'drizzle-orm';
 import type { z } from 'zod';
 import { db, type DbOrTx, type Tx } from '../../db/client';
-import {
-  countries,
-  expenses,
-  invoices,
-  payrollItems,
-  payrollRuns,
-  workers,
-} from '../../db/schema';
+import { countries, expenses, invoices, payrollItems, payrollRuns, workers } from '../../db/schema';
 import { isWorker, requireOrgId, type Actor } from '../../lib/actor';
 import { recordAudit } from '../../lib/audit';
 import { badRequest, conflict, forbidden, isUniqueViolation, notFound } from '../../lib/errors';
@@ -41,7 +34,11 @@ const PAYABLE_WORKER_STATUSES = ['active', 'offboarding', 'terminated'] as const
 
 // ---------- row -> DTO ----------
 
-function toRunDto(run: PayrollRunRow, countryName: string, invoiceId: string | null): PayrollRunDto {
+function toRunDto(
+  run: PayrollRunRow,
+  countryName: string,
+  invoiceId: string | null,
+): PayrollRunDto {
   return {
     id: run.id,
     countryCode: run.countryCode,
@@ -96,7 +93,11 @@ function toItemDto(
  */
 const liveInvoiceJoin = and(eq(invoices.payrollRunId, payrollRuns.id), ne(invoices.status, 'void'));
 
-async function loadRunDetail(dbOrTx: DbOrTx, orgId: string, runId: string): Promise<PayrollRunDetailDto> {
+async function loadRunDetail(
+  dbOrTx: DbOrTx,
+  orgId: string,
+  runId: string,
+): Promise<PayrollRunDetailDto> {
   const [row] = await dbOrTx
     .select({ run: payrollRuns, countryName: countries.name, invoiceId: invoices.id })
     .from(payrollRuns)
@@ -173,7 +174,11 @@ function assertPeriodNotTooFar(year: number, month: number): void {
 }
 
 async function findCountry(countryCode: string): Promise<CountryRow> {
-  const [country] = await db.select().from(countries).where(eq(countries.code, countryCode)).limit(1);
+  const [country] = await db
+    .select()
+    .from(countries)
+    .where(eq(countries.code, countryCode))
+    .limit(1);
   if (!country) throw badRequest('Unknown country code', 'unknown_country');
   return country;
 }
@@ -319,7 +324,10 @@ async function lockRun(tx: Tx, orgId: string, runId: string): Promise<PayrollRun
 }
 
 function invalidTransition(from: PayrollRunStatus, action: string) {
-  return conflict(`A ${from.replace('_', ' ')} payroll run cannot be ${action}`, 'invalid_transition');
+  return conflict(
+    `A ${from.replace('_', ' ')} payroll run cannot be ${action}`,
+    'invalid_transition',
+  );
 }
 
 export async function createRun(
@@ -379,7 +387,11 @@ export async function recalculateRun(actor: Actor, runId: string): Promise<Payro
     const run = await lockRun(tx, orgId, runId);
     if (run.status !== 'draft') throw invalidTransition(run.status, 'recalculated');
 
-    const [country] = await tx.select().from(countries).where(eq(countries.code, run.countryCode)).limit(1);
+    const [country] = await tx
+      .select()
+      .from(countries)
+      .where(eq(countries.code, run.countryCode))
+      .limit(1);
     if (!country) throw notFound('Country');
 
     // Start from a clean slate: release every claim, drop every item, build again
@@ -410,7 +422,9 @@ export async function deleteRun(actor: Actor, runId: string): Promise<void> {
     // Explicit release, rather than relying on the FK's ON DELETE SET NULL, so the
     // rule "deleting a draft gives its expenses back" is visible in the code.
     await releaseClaimedExpenses(tx, run);
-    await tx.delete(payrollRuns).where(and(eq(payrollRuns.id, run.id), eq(payrollRuns.organizationId, orgId)));
+    await tx
+      .delete(payrollRuns)
+      .where(and(eq(payrollRuns.id, run.id), eq(payrollRuns.organizationId, orgId)));
 
     await recordAudit(tx, actor, {
       action: 'payroll_run.deleted',
@@ -448,7 +462,11 @@ interface TransitionSpec {
  *      exactly one matches the row and the other gets a 409
  *   4. side effects + audit, all in the same transaction
  */
-async function transition(actor: Actor, runId: string, spec: TransitionSpec): Promise<PayrollRunDetailDto> {
+async function transition(
+  actor: Actor,
+  runId: string,
+  spec: TransitionSpec,
+): Promise<PayrollRunDetailDto> {
   const orgId = requireOrgId(actor);
   return db.transaction(async (tx) => {
     const [current] = await tx

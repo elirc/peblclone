@@ -65,7 +65,11 @@ export function setUnauthorizedHandler(handler: () => void): void {
   onUnauthorized = handler;
 }
 
-async function send(method: string, path: string, options: { params?: Params; body?: unknown } = {}) {
+async function send(
+  method: string,
+  path: string,
+  options: { params?: Params; body?: unknown } = {},
+) {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (options.body !== undefined) headers['Content-Type'] = 'application/json';
   const actingOrgId = getActingOrgId();
@@ -102,7 +106,11 @@ async function send(method: string, path: string, options: { params?: Params; bo
   return response;
 }
 
-async function json<T>(method: string, path: string, options?: { params?: Params; body?: unknown }) {
+async function json<T>(
+  method: string,
+  path: string,
+  options?: { params?: Params; body?: unknown },
+) {
   const response = await send(method, path, options);
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;

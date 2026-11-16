@@ -102,7 +102,11 @@ export async function register(input: RegisterInput, userAgent?: string): Promis
   }
 }
 
-export async function login(input: LoginInput, ip: string, userAgent?: string): Promise<AuthResult> {
+export async function login(
+  input: LoginInput,
+  ip: string,
+  userAgent?: string,
+): Promise<AuthResult> {
   const limiterKey = `${ip}:${input.email}`;
   loginLimiter.hit(limiterKey);
 
@@ -114,7 +118,10 @@ export async function login(input: LoginInput, ip: string, userAgent?: string): 
 
   // Always run one scrypt verification, even for an unknown email, so response
   // time does not reveal which emails have accounts.
-  const passwordOk = await verifyPassword(input.password, user?.passwordHash ?? (await getDummyHash()));
+  const passwordOk = await verifyPassword(
+    input.password,
+    user?.passwordHash ?? (await getDummyHash()),
+  );
 
   // One message for every failure. "No such user" vs "wrong password" would be
   // a free account-enumeration oracle.
@@ -169,7 +176,10 @@ export async function previewInvite(token: string): Promise<InvitePreviewDto> {
 }
 
 /** Turn an invitation into a real user (and link the worker record for portal invites). */
-export async function acceptInvite(input: AcceptInviteInput, userAgent?: string): Promise<AuthResult> {
+export async function acceptInvite(
+  input: AcceptInviteInput,
+  userAgent?: string,
+): Promise<AuthResult> {
   const invite = await findLiveInvitation(input.token);
   const passwordHash = await hashPassword(input.password);
 

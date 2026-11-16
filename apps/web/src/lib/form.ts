@@ -88,5 +88,16 @@ export function useZodForm<S extends z.ZodType>(schema: S, initialValues: z.inpu
     [initialValues],
   );
 
-  return { values, setValue, setValues, errors, formError, setFormError, submitting, handleSubmit, field, reset };
+  return {
+    values,
+    setValue,
+    setValues,
+    errors,
+    formError,
+    setFormError,
+    submitting,
+    handleSubmit,
+    field,
+    reset,
+  };
 }

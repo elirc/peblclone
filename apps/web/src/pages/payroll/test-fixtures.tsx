@@ -71,7 +71,10 @@ function AuthGate({ children }: { children: ReactNode }) {
 }
 
 /** Render `element` at `path`, matched against the router `pattern` (so useParams works). */
-export function renderPage(element: ReactNode, { path, pattern }: { path: string; pattern: string }) {
+export function renderPage(
+  element: ReactNode,
+  { path, pattern }: { path: string; pattern: string },
+) {
   return renderApp(
     <Routes>
       <Route path={pattern} element={<AuthGate>{element}</AuthGate>} />
@@ -148,10 +151,30 @@ export function makeInvoice(overrides: Partial<InvoiceDetailDto> = {}): InvoiceD
     paidAt: null,
     organizationName: 'Acme GmbH',
     lines: [
-      { id: 'l1', kind: 'gross_pay', description: 'Gross pay — Germany, March 2026', amountMinor: 543_478 },
-      { id: 'l2', kind: 'employer_cost', description: 'Employer contributions', amountMinor: 114_130 },
-      { id: 'l3', kind: 'reimbursement', description: 'Expense reimbursements', amountMinor: 22_392 },
-      { id: 'l4', kind: 'platform_fee', description: 'Meridian EOR fee — 1 employee', amountMinor: 59_900 },
+      {
+        id: 'l1',
+        kind: 'gross_pay',
+        description: 'Gross pay — Germany, March 2026',
+        amountMinor: 543_478,
+      },
+      {
+        id: 'l2',
+        kind: 'employer_cost',
+        description: 'Employer contributions',
+        amountMinor: 114_130,
+      },
+      {
+        id: 'l3',
+        kind: 'reimbursement',
+        description: 'Expense reimbursements',
+        amountMinor: 22_392,
+      },
+      {
+        id: 'l4',
+        kind: 'platform_fee',
+        description: 'Meridian EOR fee — 1 employee',
+        amountMinor: 59_900,
+      },
     ],
     ...overrides,
   };

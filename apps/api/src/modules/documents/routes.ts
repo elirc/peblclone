@@ -1,4 +1,8 @@
-import { requestDocumentSchema, reviewDocumentSchema, uploadDocumentSchema } from '@meridian/shared';
+import {
+  requestDocumentSchema,
+  reviewDocumentSchema,
+  uploadDocumentSchema,
+} from '@meridian/shared';
 import { Router } from 'express';
 import { getActor } from '../../lib/actor';
 import { parseBody, uuidParam } from '../../lib/http';
@@ -34,7 +38,12 @@ documentsRouter.get('/documents/:id/file', authenticate, async (req, res) => {
   res.end(file.bytes);
 });
 
-documentsRouter.post('/documents/:id/review', authenticate, requirePlatformAdmin, async (req, res) => {
-  const input = parseBody(reviewDocumentSchema, req);
-  res.json(await service.reviewDocument(getActor(req), uuidParam(req), input));
-});
+documentsRouter.post(
+  '/documents/:id/review',
+  authenticate,
+  requirePlatformAdmin,
+  async (req, res) => {
+    const input = parseBody(reviewDocumentSchema, req);
+    res.json(await service.reviewDocument(getActor(req), uuidParam(req), input));
+  },
+);

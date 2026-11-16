@@ -6,7 +6,12 @@ import {
 import { Router } from 'express';
 import { getActor } from '../../lib/actor';
 import { parseBody, uuidParam } from '../../lib/http';
-import { authenticate, requireAdmin, requirePlatformAdmin, requireStaff } from '../../middleware/auth';
+import {
+  authenticate,
+  requireAdmin,
+  requirePlatformAdmin,
+  requireStaff,
+} from '../../middleware/auth';
 import * as service from './service';
 
 export const organizationsRouter = Router();

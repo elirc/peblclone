@@ -1,7 +1,12 @@
 import { INVITABLE_TEAM_ROLES, type InviteDto, type TeamMemberDto } from '@meridian/shared';
 import { MailPlus, Users } from 'lucide-react';
 import { useState } from 'react';
-import { useRevokeTeamInvite, useTeam, useTeamInvites, useUpdateTeamMember } from '../../api/organization';
+import {
+  useRevokeTeamInvite,
+  useTeam,
+  useTeamInvites,
+  useUpdateTeamMember,
+} from '../../api/organization';
 import {
   Badge,
   Button,
@@ -37,7 +42,10 @@ export default function TeamPage() {
         description="The people at your company who use Meridian. Workers are managed under People."
         actions={
           isAdmin && (
-            <Button icon={<MailPlus className="h-4 w-4" aria-hidden />} onClick={() => setInviting(true)}>
+            <Button
+              icon={<MailPlus className="h-4 w-4" aria-hidden />}
+              onClick={() => setInviting(true)}
+            >
               Invite teammate
             </Button>
           )
@@ -82,7 +90,9 @@ function MembersCard({
   async function toggleActive(member: TeamMemberDto) {
     try {
       await update.mutateAsync({ id: member.id, input: { isActive: !member.isActive } });
-      toast.success(member.isActive ? `${member.fullName} deactivated` : `${member.fullName} reactivated`);
+      toast.success(
+        member.isActive ? `${member.fullName} deactivated` : `${member.fullName} reactivated`,
+      );
     } catch (err) {
       toast.error(err);
     } finally {
@@ -133,7 +143,11 @@ function MembersCard({
       key: 'status',
       header: 'Status',
       cell: (member) =>
-        member.isActive ? <StatusBadge status="active" /> : <Badge tone="neutral">Deactivated</Badge>,
+        member.isActive ? (
+          <StatusBadge status="active" />
+        ) : (
+          <Badge tone="neutral">Deactivated</Badge>
+        ),
     },
     { key: 'since', header: 'Member since', cell: (member) => formatDate(member.createdAt) },
   ];
@@ -187,7 +201,11 @@ function MembersCard({
       <ConfirmDialog
         open={confirming !== undefined}
         onClose={() => setConfirmId(null)}
-        title={confirming?.isActive ? `Deactivate ${confirming.fullName}?` : `Reactivate ${confirming?.fullName ?? ''}?`}
+        title={
+          confirming?.isActive
+            ? `Deactivate ${confirming.fullName}?`
+            : `Reactivate ${confirming?.fullName ?? ''}?`
+        }
         confirmLabel={confirming?.isActive ? 'Deactivate' : 'Reactivate'}
         danger={confirming?.isActive}
         loading={update.isPending}
@@ -223,7 +241,11 @@ function InvitesCard() {
   }
 
   const columns: Column<InviteDto>[] = [
-    { key: 'email', header: 'Email', cell: (invite) => <span className="font-medium text-ink-900">{invite.email}</span> },
+    {
+      key: 'email',
+      header: 'Email',
+      cell: (invite) => <span className="font-medium text-ink-900">{invite.email}</span>,
+    },
     { key: 'role', header: 'Role', cell: (invite) => humanize(invite.role) },
     { key: 'sent', header: 'Created', cell: (invite) => formatDate(invite.createdAt) },
     {
@@ -291,7 +313,8 @@ function InvitesCard() {
           if (revoking) void onRevoke(revoking);
         }}
       >
-        {revoking && `The link sent to ${revoking.email} will stop working. You can invite them again later.`}
+        {revoking &&
+          `The link sent to ${revoking.email} will stop working. You can invite them again later.`}
       </ConfirmDialog>
     </Card>
   );

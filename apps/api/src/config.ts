@@ -15,13 +15,21 @@ dotenv.config({ path: path.join(repoRoot, '.env'), quiet: true });
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
-  DATABASE_URL: z.string().url().default('postgres://postgres:postgres@localhost:5443/meridian_dev'),
+  DATABASE_URL: z
+    .string()
+    .url()
+    .default('postgres://postgres:postgres@localhost:5443/meridian_dev'),
   TEST_DATABASE_URL: z
     .string()
     .url()
     .default('postgres://postgres:postgres@localhost:5443/meridian_test'),
   WEB_ORIGIN: z.string().url().default('http://localhost:5173'),
-  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(24 * 90).default(168),
+  SESSION_TTL_HOURS: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 90)
+    .default(168),
   STORAGE_DIR: z.string().optional(),
   LOG_LEVEL: z.enum(['silent', 'error', 'warn', 'info', 'debug']).optional(),
 });

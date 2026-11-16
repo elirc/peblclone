@@ -10,7 +10,14 @@ import {
 } from '@meridian/shared';
 import { and, eq, sql } from 'drizzle-orm';
 import type { Tx } from '../db/client';
-import { countries, fxRates, invoiceLines, invoices, payrollItems, payrollRuns } from '../db/schema';
+import {
+  countries,
+  fxRates,
+  invoiceLines,
+  invoices,
+  payrollItems,
+  payrollRuns,
+} from '../db/schema';
 import type { Actor } from './actor';
 import { recordAudit } from './audit';
 import { conflict, notFound } from './errors';
@@ -54,7 +61,10 @@ export async function issueInvoiceForRun(
     .limit(1);
   if (!rate) {
     // Refusing is the only safe answer: guessing a rate would bill the client a made-up amount.
-    throw conflict(`No exchange rate for ${run.currency}; cannot issue the invoice`, 'fx_rate_missing');
+    throw conflict(
+      `No exchange rate for ${run.currency}; cannot issue the invoice`,
+      'fx_rate_missing',
+    );
   }
 
   const [country] = await tx
@@ -78,7 +88,8 @@ export async function issueInvoiceForRun(
   const employees = headcount.find((h) => h.workerType === 'employee')?.n ?? 0;
   const contractors = headcount.find((h) => h.workerType === 'contractor')?.n ?? 0;
 
-  const toUsd = (localMinor: number) => convertMinor(
+  const toUsd = (localMinor: number) =>
+    convertMinor(
       localMinor,
       { currency: run.currency, perUsd: rate.perUsd },
       { currency: 'USD', perUsd: '1' },

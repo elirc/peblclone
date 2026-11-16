@@ -67,7 +67,13 @@ export function RegisterPage() {
           ))}
         </Select>
         <Input label="Your full name" autoComplete="name" required {...form.field('fullName')} />
-        <Input label="Work email" type="email" autoComplete="email" required {...form.field('email')} />
+        <Input
+          label="Work email"
+          type="email"
+          autoComplete="email"
+          required
+          {...form.field('email')}
+        />
         <Input
           label="Password"
           type="password"

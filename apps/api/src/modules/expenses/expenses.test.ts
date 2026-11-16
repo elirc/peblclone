@@ -142,7 +142,9 @@ describe('POST /expenses', () => {
 
   it(`accepts an expense exactly ${EXPENSE_MAX_AGE_DAYS} days old but not one day older`, async () => {
     const { workerClient } = await setup();
-    const oldest = await submit(workerClient, { incurredOn: addDays(TODAY, -EXPENSE_MAX_AGE_DAYS) });
+    const oldest = await submit(workerClient, {
+      incurredOn: addDays(TODAY, -EXPENSE_MAX_AGE_DAYS),
+    });
     expect(oldest.status).toBe(201);
 
     const tooOld = await submit(workerClient, {
@@ -286,7 +288,9 @@ describe('POST /expenses/:id/decision', () => {
   it('validates the decision', async () => {
     const { admin, workerClient } = await setup();
     const expense = await submitted(workerClient);
-    const res = await admin.post(`/expenses/${expense.id}/decision`).send({ decision: 'reimbursed' });
+    const res = await admin
+      .post(`/expenses/${expense.id}/decision`)
+      .send({ decision: 'reimbursed' });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('validation_error');
   });
@@ -296,8 +300,12 @@ describe('POST /expenses/:id/decision', () => {
     const other = await createTenant();
     const expense = await submitted(workerClient);
     const body = { decision: 'approved' };
-    expect((await workerClient.post(`/expenses/${expense.id}/decision`).send(body)).status).toBe(403);
-    expect((await other.admin.post(`/expenses/${expense.id}/decision`).send(body)).status).toBe(404);
+    expect((await workerClient.post(`/expenses/${expense.id}/decision`).send(body)).status).toBe(
+      403,
+    );
+    expect((await other.admin.post(`/expenses/${expense.id}/decision`).send(body)).status).toBe(
+      404,
+    );
     const [row] = await db.select().from(expenses).where(eq(expenses.id, expense.id));
     expect(row?.status).toBe('submitted');
   });

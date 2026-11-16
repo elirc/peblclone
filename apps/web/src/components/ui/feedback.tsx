@@ -12,7 +12,10 @@ export function Spinner({ className }: { className?: string }) {
 /** Centered spinner for a whole page or panel that is loading. */
 export function Loading({ label = 'Loading…' }: { label?: string }) {
   return (
-    <div role="status" className="flex items-center justify-center gap-3 py-16 text-sm text-ink-500">
+    <div
+      role="status"
+      className="flex items-center justify-center gap-3 py-16 text-sm text-ink-500"
+    >
       <Spinner />
       {label}
     </div>
@@ -31,7 +34,10 @@ const alertTones: Record<Tone, { box: string; icon: ReactNode }> = {
     box: 'border-amber-200 bg-amber-50 text-amber-900',
     icon: <TriangleAlert className="h-4 w-4" />,
   },
-  error: { box: 'border-red-200 bg-red-50 text-red-900', icon: <AlertCircle className="h-4 w-4" /> },
+  error: {
+    box: 'border-red-200 bg-red-50 text-red-900',
+    icon: <AlertCircle className="h-4 w-4" />,
+  },
 };
 
 export function Alert({

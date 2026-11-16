@@ -18,7 +18,8 @@ export class AppError extends Error {
   }
 }
 
-export const badRequest = (message: string, code = 'bad_request') => new AppError(400, code, message);
+export const badRequest = (message: string, code = 'bad_request') =>
+  new AppError(400, code, message);
 
 export const validationError = (details: Record<string, string[]>, message = 'Invalid request') =>
   new AppError(400, 'validation_error', message, details);

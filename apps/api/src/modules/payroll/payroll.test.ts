@@ -76,7 +76,9 @@ function expectTotalsMatchItems(run: Record<string, unknown> & { items: Item[] }
   expect(run.employerCostMinor).toBe(sum(run.items, 'employerCostMinor'));
   expect(run.reimbursementsMinor).toBe(sum(run.items, 'reimbursementsMinor'));
   expect(run.totalCostMinor).toBe(
-    (run.grossMinor as number) + (run.employerCostMinor as number) + (run.reimbursementsMinor as number),
+    (run.grossMinor as number) +
+      (run.employerCostMinor as number) +
+      (run.reimbursementsMinor as number),
   );
 }
 
@@ -228,10 +230,22 @@ describe('POST /payroll/runs: calculation', () => {
     const t = await createTenant();
     const other = await createTenant();
     const active = await createWorker(t.org.id, { lastName: 'Active' });
-    const offboarding = await createWorker(t.org.id, { lastName: 'Offboarding', status: 'offboarding', endDate: '2026-03-31' });
+    const offboarding = await createWorker(t.org.id, {
+      lastName: 'Offboarding',
+      status: 'offboarding',
+      endDate: '2026-03-31',
+    });
     // Left on 15 January: paid for 15 of 31 days, and still on this run.
-    const leaver = await createWorker(t.org.id, { lastName: 'Leaver', status: 'terminated', endDate: '2026-01-15' });
-    await createWorker(t.org.id, { lastName: 'LeftLastYear', status: 'terminated', endDate: '2025-12-31' });
+    const leaver = await createWorker(t.org.id, {
+      lastName: 'Leaver',
+      status: 'terminated',
+      endDate: '2026-01-15',
+    });
+    await createWorker(t.org.id, {
+      lastName: 'LeftLastYear',
+      status: 'terminated',
+      endDate: '2025-12-31',
+    });
     await createWorker(t.org.id, { lastName: 'Onboarding', status: 'onboarding' });
     await createWorker(t.org.id, { lastName: 'Cancelled', status: 'cancelled' });
     await createWorker(t.org.id, { lastName: 'StartsLater', startDate: '2026-02-01' });
@@ -243,7 +257,11 @@ describe('POST /payroll/runs: calculation', () => {
       [active.id, offboarding.id, leaver.id].sort(),
     );
     // Items come back ordered by worker name.
-    expect(run.items.map((i) => i.workerName)).toEqual(['Wanda Active', 'Wanda Leaver', 'Wanda Offboarding']);
+    expect(run.items.map((i) => i.workerName)).toEqual([
+      'Wanda Active',
+      'Wanda Leaver',
+      'Wanda Offboarding',
+    ]);
     const leaverItem = run.items.find((i) => i.workerId === leaver.id)!;
     expect(leaverItem).toMatchObject({ daysWorked: 15, grossMinor: 241_935 }); // 500,000 × 15/31
     expectTotalsMatchItems(run);
@@ -270,17 +288,23 @@ describe('POST /payroll/runs: calculation', () => {
     const t = await createTenant();
     await createWorker(t.org.id);
 
-    const tooFar = await t.admin.post('/payroll/runs').send({ countryCode: 'DE', ...monthsFromNow(2) });
+    const tooFar = await t.admin
+      .post('/payroll/runs')
+      .send({ countryCode: 'DE', ...monthsFromNow(2) });
     expect(tooFar.status).toBe(400);
     expect(tooFar.body.error.code).toBe('period_too_far');
 
-    const next = await t.admin.post('/payroll/runs').send({ countryCode: 'DE', ...monthsFromNow(1) });
+    const next = await t.admin
+      .post('/payroll/runs')
+      .send({ countryCode: 'DE', ...monthsFromNow(1) });
     expect(next.status).toBe(201);
   });
 
   it('validates the body', async () => {
     const t = await createTenant();
-    const res = await t.admin.post('/payroll/runs').send({ countryCode: 'DE', periodYear: 2026, periodMonth: 13 });
+    const res = await t.admin
+      .post('/payroll/runs')
+      .send({ countryCode: 'DE', periodYear: 2026, periodMonth: 13 });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('validation_error');
     expect(res.body.error.details.periodMonth).toBeDefined();
@@ -396,7 +420,10 @@ describe('expense claiming', () => {
     expect((await expenseRow(late.id)).payrollRunId).toBe(run.id);
 
     const logs = await db.select().from(auditLogs).where(eq(auditLogs.entityId, run.id));
-    expect(logs.map((l) => l.action).sort()).toEqual(['payroll_run.created', 'payroll_run.recalculated']);
+    expect(logs.map((l) => l.action).sort()).toEqual([
+      'payroll_run.created',
+      'payroll_run.recalculated',
+    ]);
   });
 
   it('a failed recalculation changes nothing', async () => {
@@ -508,7 +535,9 @@ describe('payroll run lifecycle', () => {
     const run = await createRun(t.admin);
     await t.admin.post(`/payroll/runs/${run.id}/submit`);
 
-    const rejected = await t.admin.post(`/payroll/runs/${run.id}/reject`).send({ reason: 'Bonus missing' });
+    const rejected = await t.admin
+      .post(`/payroll/runs/${run.id}/reject`)
+      .send({ reason: 'Bonus missing' });
     expect(rejected.status).toBe(200);
     expect(rejected.body).toMatchObject({ status: 'draft', rejectionReason: 'Bonus missing' });
 
@@ -522,7 +551,11 @@ describe('payroll run lifecycle', () => {
       .select()
       .from(auditLogs)
       .where(and(eq(auditLogs.entityId, run.id), eq(auditLogs.action, 'payroll_run.rejected')));
-    expect(log!.metadata).toMatchObject({ from: 'pending_approval', to: 'draft', reason: 'Bonus missing' });
+    expect(log!.metadata).toMatchObject({
+      from: 'pending_approval',
+      to: 'draft',
+      reason: 'Bonus missing',
+    });
   });
 
   it('reject requires a reason', async () => {
@@ -553,9 +586,16 @@ describe('payroll run lifecycle', () => {
     }
 
     const after = await t.admin.get(`/payroll/runs/${run.id}`);
-    expect(after.body).toMatchObject({ status: 'pending_approval', approvedAt: null, invoiceId: null });
+    expect(after.body).toMatchObject({
+      status: 'pending_approval',
+      approvedAt: null,
+      invoiceId: null,
+    });
     expect(await db.select().from(invoices)).toHaveLength(0);
-    const approvals = await db.select().from(auditLogs).where(eq(auditLogs.action, 'payroll_run.approved'));
+    const approvals = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.action, 'payroll_run.approved'));
     expect(approvals).toHaveLength(0);
   });
 
@@ -574,7 +614,9 @@ describe('payroll run lifecycle', () => {
   });
 
   describe('illegal transitions answer 409 invalid_transition', () => {
-    async function runIn(status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid') {
+    async function runIn(
+      status: 'draft' | 'pending_approval' | 'approved' | 'processing' | 'paid',
+    ) {
       const t = await createTenant();
       const platform = await createPlatformAdmin(t.org.id);
       await createWorker(t.org.id);
@@ -584,7 +626,8 @@ describe('payroll run lifecycle', () => {
         const approved = await t.admin.post(`/payroll/runs/${run.id}/approve`);
         await t.admin.post(`/invoices/${approved.body.invoiceId}/pay`);
       }
-      if (['processing', 'paid'].includes(status)) await platform.client.post(`/payroll/runs/${run.id}/process`);
+      if (['processing', 'paid'].includes(status))
+        await platform.client.post(`/payroll/runs/${run.id}/process`);
       if (status === 'paid') await platform.client.post(`/payroll/runs/${run.id}/mark-paid`);
       const [row] = await db.select().from(payrollRuns).where(eq(payrollRuns.id, run.id));
       expect(row!.status).toBe(status);
@@ -690,10 +733,14 @@ describe('GET /payroll/runs', () => {
 
     await b.admin.post(`/payroll/runs/${theirs.id}/submit`);
     expect((await a.admin.post(`/payroll/runs/${theirs.id}/approve`)).status).toBe(404);
-    expect((await a.admin.post(`/payroll/runs/${theirs.id}/reject`).send({ reason: 'x' })).status).toBe(404);
+    expect(
+      (await a.admin.post(`/payroll/runs/${theirs.id}/reject`).send({ reason: 'x' })).status,
+    ).toBe(404);
     const platformInA = await createPlatformAdmin(a.org.id);
     expect((await platformInA.client.post(`/payroll/runs/${theirs.id}/process`)).status).toBe(404);
-    expect((await platformInA.client.post(`/payroll/runs/${theirs.id}/mark-paid`)).status).toBe(404);
+    expect((await platformInA.client.post(`/payroll/runs/${theirs.id}/mark-paid`)).status).toBe(
+      404,
+    );
 
     // Still untouched in B.
     expect((await b.admin.get(`/payroll/runs/${theirs.id}`)).body.status).toBe('pending_approval');
@@ -721,7 +768,9 @@ describe('payroll permissions', () => {
     expect((await manager.client.delete(`/payroll/runs/${run.id}`)).status).toBe(403);
     expect((await manager.client.post(`/payroll/runs/${run.id}/submit`)).status).toBe(200);
     expect((await manager.client.post(`/payroll/runs/${run.id}/approve`)).status).toBe(403);
-    expect((await manager.client.post(`/payroll/runs/${run.id}/reject`).send({ reason: 'x' })).status).toBe(403);
+    expect(
+      (await manager.client.post(`/payroll/runs/${run.id}/reject`).send({ reason: 'x' })).status,
+    ).toBe(403);
   });
 
   it('a client admin cannot process or mark paid', async () => {

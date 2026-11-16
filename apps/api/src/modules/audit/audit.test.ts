@@ -63,7 +63,9 @@ describe('GET /audit-logs', () => {
     const t = await createTenant();
     await t.admin.patch('/organization').send({ name: 'Renamed' });
     const res = await t.admin.get('/audit-logs');
-    expect(res.body.items.map((l: { action: string }) => l.action)).toEqual(['organization.updated']);
+    expect(res.body.items.map((l: { action: string }) => l.action)).toEqual([
+      'organization.updated',
+    ]);
   });
 
   it('shows a null actor name for system events and for users that no longer exist', async () => {
@@ -79,14 +81,21 @@ describe('GET /audit-logs', () => {
     });
 
     const res = await t.admin.get('/audit-logs');
-    expect(res.body.items.map((l: { actorName: string | null }) => l.actorName)).toEqual([null, null]);
+    expect(res.body.items.map((l: { actorName: string | null }) => l.actorName)).toEqual([
+      null,
+      null,
+    ]);
   });
 
   it('is scoped to the tenant: no other tenant’s events, no platform-level events', async () => {
     const a = await createTenant();
     const b = await createTenant();
     await insertLog({ organizationId: a.org.id, action: 'mine.created', createdAt: minutesAgo(3) });
-    await insertLog({ organizationId: b.org.id, action: 'theirs.created', createdAt: minutesAgo(2) });
+    await insertLog({
+      organizationId: b.org.id,
+      action: 'theirs.created',
+      createdAt: minutesAgo(2),
+    });
     await insertLog({ organizationId: null, action: 'country.updated', createdAt: minutesAgo(1) });
 
     const res = await a.admin.get('/audit-logs');
@@ -94,15 +103,32 @@ describe('GET /audit-logs', () => {
 
     const platform = await createPlatformAdmin(b.org.id);
     const asPlatform = await platform.client.get('/audit-logs');
-    expect(asPlatform.body.items.map((l: { action: string }) => l.action)).toEqual(['theirs.created']);
+    expect(asPlatform.body.items.map((l: { action: string }) => l.action)).toEqual([
+      'theirs.created',
+    ]);
   });
 
   it('filters by entityType and entityId', async () => {
     const t = await createTenant();
     const target = randomUUID();
-    await insertLog({ organizationId: t.org.id, entityType: 'worker', entityId: target, createdAt: minutesAgo(3) });
-    await insertLog({ organizationId: t.org.id, entityType: 'worker', entityId: randomUUID(), createdAt: minutesAgo(2) });
-    await insertLog({ organizationId: t.org.id, entityType: 'invoice', entityId: target, createdAt: minutesAgo(1) });
+    await insertLog({
+      organizationId: t.org.id,
+      entityType: 'worker',
+      entityId: target,
+      createdAt: minutesAgo(3),
+    });
+    await insertLog({
+      organizationId: t.org.id,
+      entityType: 'worker',
+      entityId: randomUUID(),
+      createdAt: minutesAgo(2),
+    });
+    await insertLog({
+      organizationId: t.org.id,
+      entityType: 'invoice',
+      entityId: target,
+      createdAt: minutesAgo(1),
+    });
 
     expect((await t.admin.get('/audit-logs?entityType=worker')).body.total).toBe(2);
     expect((await t.admin.get(`/audit-logs?entityId=${target}`)).body.total).toBe(2);

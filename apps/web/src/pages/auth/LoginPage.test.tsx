@@ -22,7 +22,10 @@ describe('LoginPage', () => {
   it('sends normalised credentials and shows the server error on failure', async () => {
     const { calls } = mockFetch(signedOut, ({ url, method }) =>
       method === 'POST' && url.endsWith('/auth/login')
-        ? jsonResponse({ error: { code: 'unauthorized', message: 'Invalid email or password' } }, 401)
+        ? jsonResponse(
+            { error: { code: 'unauthorized', message: 'Invalid email or password' } },
+            401,
+          )
         : undefined,
     );
     renderApp(<LoginPage />);
@@ -53,7 +56,9 @@ describe('LoginPage', () => {
     await userEvent.click(button);
 
     await waitFor(() => expect(button).toBeDisabled());
-    release(jsonResponse({ error: { code: 'unauthorized', message: 'Invalid email or password' } }, 401));
+    release(
+      jsonResponse({ error: { code: 'unauthorized', message: 'Invalid email or password' } }, 401),
+    );
     await waitFor(() => expect(button).toBeEnabled());
   });
 });

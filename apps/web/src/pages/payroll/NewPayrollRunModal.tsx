@@ -69,7 +69,9 @@ export function NewPayrollRunModal({ open, onClose }: { open: boolean; onClose: 
           disabled={countries.isLoading}
           {...form.field('countryCode')}
         >
-          <option value="">{countries.isLoading ? 'Loading countries…' : 'Choose a country'}</option>
+          <option value="">
+            {countries.isLoading ? 'Loading countries…' : 'Choose a country'}
+          </option>
           {countries.data?.items.map((country) => (
             <option key={country.code} value={country.code}>
               {country.name} ({country.currency})

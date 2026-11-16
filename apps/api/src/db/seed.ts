@@ -24,7 +24,9 @@ import type { Response } from 'supertest';
  */
 
 const PASSWORD = 'meridian-demo-1';
-const TINY_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n').toString('base64');
+const TINY_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n').toString(
+  'base64',
+);
 
 // Imported lazily so LOG_LEVEL above is set before config/logger load.
 const { config } = await import('../config');
@@ -151,11 +153,13 @@ async function main() {
     'invite manager',
   );
   ok(
-    await anonymous().post('/auth/accept-invite').send({
-      token: new URL(invite.body.acceptUrl).searchParams.get('token'),
-      fullName: 'Morgan Lee',
-      password: PASSWORD,
-    }),
+    await anonymous()
+      .post('/auth/accept-invite')
+      .send({
+        token: new URL(invite.body.acceptUrl).searchParams.get('token'),
+        fullName: 'Morgan Lee',
+        password: PASSWORD,
+      }),
     201,
     'manager accepts',
   );
@@ -166,7 +170,10 @@ async function main() {
     'pending invite',
   );
 
-  async function hire(person: Hire, sendInvite = true): Promise<HiredWorker & { acceptUrl: string | null }> {
+  async function hire(
+    person: Hire,
+    sendInvite = true,
+  ): Promise<HiredWorker & { acceptUrl: string | null }> {
     const email = `${person.firstName}.${person.lastName}@acme.test`.toLowerCase();
     const res = ok(
       await admin.post('/workers').send({
@@ -190,11 +197,13 @@ async function main() {
 
   async function acceptPortalInvite(person: Hire, acceptUrl: string): Promise<TestClient> {
     const res = ok(
-      await anonymous().post('/auth/accept-invite').send({
-        token: new URL(acceptUrl).searchParams.get('token'),
-        fullName: `${person.firstName} ${person.lastName}`,
-        password: PASSWORD,
-      }),
+      await anonymous()
+        .post('/auth/accept-invite')
+        .send({
+          token: new URL(acceptUrl).searchParams.get('token'),
+          fullName: `${person.firstName} ${person.lastName}`,
+          password: PASSWORD,
+        }),
       201,
       `${person.firstName} accepts invite`,
     );
@@ -206,7 +215,11 @@ async function main() {
     const hired = await hire(person);
     const portal = await acceptPortalInvite(person, hired.acceptUrl!);
 
-    const contract = ok(await admin.post('/contracts').send({ workerId: hired.id }), 201, 'contract');
+    const contract = ok(
+      await admin.post('/contracts').send({ workerId: hired.id }),
+      201,
+      'contract',
+    );
     ok(await admin.post(`/contracts/${contract.body.id}/send`), 200, 'send contract');
     ok(
       await portal
@@ -226,11 +239,20 @@ async function main() {
         200,
         'upload document',
       );
-      ok(await platform.post(`/documents/${doc.id}/review`).send({ decision: 'verified' }), 200, 'verify');
+      ok(
+        await platform.post(`/documents/${doc.id}/review`).send({ decision: 'verified' }),
+        200,
+        'verify',
+      );
     }
 
     const detail = ok(await admin.get(`/workers/${hired.id}`), 200, 'worker detail');
-    for (const task of detail.body.tasks as { id: string; assignee: string; status: string; automatic: boolean }[]) {
+    for (const task of detail.body.tasks as {
+      id: string;
+      assignee: string;
+      status: string;
+      automatic: boolean;
+    }[]) {
       if (task.status === 'completed' || task.automatic) continue;
       const actor = task.assignee === 'worker' ? portal : admin;
       ok(await actor.post(`/onboarding-tasks/${task.id}/complete`), 200, 'complete task');
@@ -244,39 +266,81 @@ async function main() {
 
   console.log('Hiring and onboarding the Acme team…');
   const lena = await hireAndActivate({
-    firstName: 'Lena', lastName: 'Fischer', type: 'employee', countryCode: 'DE',
-    jobTitle: 'Senior Backend Engineer', department: 'Engineering',
-    salaryMinor: 7_200_000, payBasis: 'annual', startedMonthsAgo: 8,
+    firstName: 'Lena',
+    lastName: 'Fischer',
+    type: 'employee',
+    countryCode: 'DE',
+    jobTitle: 'Senior Backend Engineer',
+    department: 'Engineering',
+    salaryMinor: 7_200_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 8,
   });
   const tom = await hireAndActivate({
-    firstName: 'Tom', lastName: 'Becker', type: 'employee', countryCode: 'DE',
-    jobTitle: 'Product Designer', department: 'Design',
-    salaryMinor: 5_800_000, payBasis: 'annual', startedMonthsAgo: 5,
+    firstName: 'Tom',
+    lastName: 'Becker',
+    type: 'employee',
+    countryCode: 'DE',
+    jobTitle: 'Product Designer',
+    department: 'Design',
+    salaryMinor: 5_800_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 5,
   });
   const priya = await hireAndActivate({
-    firstName: 'Priya', lastName: 'Sharma', type: 'employee', countryCode: 'IN',
-    jobTitle: 'QA Engineer', department: 'Engineering',
-    salaryMinor: 240_000_000, payBasis: 'annual', startedMonthsAgo: 6,
+    firstName: 'Priya',
+    lastName: 'Sharma',
+    type: 'employee',
+    countryCode: 'IN',
+    jobTitle: 'QA Engineer',
+    department: 'Engineering',
+    salaryMinor: 240_000_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 6,
   });
   await hireAndActivate({
-    firstName: 'Maria', lastName: 'Santos', type: 'employee', countryCode: 'PH',
-    jobTitle: 'Customer Support Lead', department: 'Support',
-    salaryMinor: 120_000_000, payBasis: 'annual', startedMonthsAgo: 4,
+    firstName: 'Maria',
+    lastName: 'Santos',
+    type: 'employee',
+    countryCode: 'PH',
+    jobTitle: 'Customer Support Lead',
+    department: 'Support',
+    salaryMinor: 120_000_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 4,
   });
   const james = await hireAndActivate({
-    firstName: 'James', lastName: 'Wilson', type: 'employee', countryCode: 'GB',
-    jobTitle: 'Account Executive', department: 'Sales',
-    salaryMinor: 6_500_000, payBasis: 'annual', startedMonthsAgo: 7,
+    firstName: 'James',
+    lastName: 'Wilson',
+    type: 'employee',
+    countryCode: 'GB',
+    jobTitle: 'Account Executive',
+    department: 'Sales',
+    salaryMinor: 6_500_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 7,
   });
   await hireAndActivate({
-    firstName: 'Sofia', lastName: 'Garcia', type: 'contractor', countryCode: 'ES',
-    jobTitle: 'Brand Illustrator', department: 'Design',
-    salaryMinor: 450_000, payBasis: 'monthly', startedMonthsAgo: 3,
+    firstName: 'Sofia',
+    lastName: 'Garcia',
+    type: 'contractor',
+    countryCode: 'ES',
+    jobTitle: 'Brand Illustrator',
+    department: 'Design',
+    salaryMinor: 450_000,
+    payBasis: 'monthly',
+    startedMonthsAgo: 3,
   });
   const kenji = await hireAndActivate({
-    firstName: 'Kenji', lastName: 'Tanaka', type: 'employee', countryCode: 'JP',
-    jobTitle: 'Solutions Engineer', department: 'Sales',
-    salaryMinor: 8_400_000, payBasis: 'annual', startedMonthsAgo: 10,
+    firstName: 'Kenji',
+    lastName: 'Tanaka',
+    type: 'employee',
+    countryCode: 'JP',
+    jobTitle: 'Solutions Engineer',
+    department: 'Sales',
+    salaryMinor: 8_400_000,
+    payBasis: 'annual',
+    startedMonthsAgo: 10,
   });
 
   // Kenji has resigned: last day is the end of next month.
@@ -294,13 +358,23 @@ async function main() {
   // Diego is mid-onboarding: accepted the invite, contract waiting for his signature,
   // one document uploaded and awaiting verification.
   const diegoSpec: Hire = {
-    firstName: 'Diego', lastName: 'Ramirez', type: 'employee', countryCode: 'MX',
-    jobTitle: 'Data Analyst', department: 'Operations',
-    salaryMinor: 72_000_000, payBasis: 'annual', startedMonthsAgo: -1, // starts next month
+    firstName: 'Diego',
+    lastName: 'Ramirez',
+    type: 'employee',
+    countryCode: 'MX',
+    jobTitle: 'Data Analyst',
+    department: 'Operations',
+    salaryMinor: 72_000_000,
+    payBasis: 'annual',
+    startedMonthsAgo: -1, // starts next month
   };
   const diego = await hire(diegoSpec);
   const diegoPortal = await acceptPortalInvite(diegoSpec, diego.acceptUrl!);
-  const diegoContract = ok(await admin.post('/contracts').send({ workerId: diego.id }), 201, 'contract');
+  const diegoContract = ok(
+    await admin.post('/contracts').send({ workerId: diego.id }),
+    201,
+    'contract',
+  );
   ok(await admin.post(`/contracts/${diegoContract.body.id}/send`), 200, 'send contract');
   const diegoDocs = ok(await diegoPortal.get(`/workers/${diego.id}/documents`), 200, 'documents');
   const firstDoc = (diegoDocs.body.items as { id: string }[])[0];
@@ -316,9 +390,15 @@ async function main() {
 
   // Chloe was hired today: nothing done yet, invite link not yet opened.
   await hire({
-    firstName: 'Chloe', lastName: 'Martin', type: 'employee', countryCode: 'FR',
-    jobTitle: 'Marketing Manager', department: 'Marketing',
-    salaryMinor: 6_000_000, payBasis: 'annual', startedMonthsAgo: -1,
+    firstName: 'Chloe',
+    lastName: 'Martin',
+    type: 'employee',
+    countryCode: 'FR',
+    jobTitle: 'Marketing Manager',
+    department: 'Marketing',
+    salaryMinor: 6_000_000,
+    payBasis: 'annual',
+    startedMonthsAgo: -1,
   });
 
   // ---- time off ----
@@ -326,14 +406,18 @@ async function main() {
   const lastMonthMonday = firstMondayOf(-1);
   const lenaLeave = ok(
     await lena.portal!.post('/time-off/requests').send({
-      type: 'vacation', startDate: lastMonthMonday, endDate: addDays(lastMonthMonday, 2),
+      type: 'vacation',
+      startDate: lastMonthMonday,
+      endDate: addDays(lastMonthMonday, 2),
       reason: 'Family visit',
     }),
     201,
     'Lena leave',
   );
   ok(
-    await admin.post(`/time-off/requests/${lenaLeave.body.id}/decision`).send({ decision: 'approved' }),
+    await admin
+      .post(`/time-off/requests/${lenaLeave.body.id}/decision`)
+      .send({ decision: 'approved' }),
     200,
     'approve leave',
   );
@@ -341,7 +425,9 @@ async function main() {
   if (nextMonthMonday.slice(0, 4) === addDays(nextMonthMonday, 4).slice(0, 4)) {
     ok(
       await lena.portal!.post('/time-off/requests').send({
-        type: 'vacation', startDate: nextMonthMonday, endDate: addDays(nextMonthMonday, 4),
+        type: 'vacation',
+        startDate: nextMonthMonday,
+        endDate: addDays(nextMonthMonday, 4),
         reason: 'Winter break',
       }),
       201,
@@ -349,7 +435,10 @@ async function main() {
     );
     ok(
       await tom.portal!.post('/time-off/requests').send({
-        type: 'sick', startDate: nextMonthMonday, endDate: nextMonthMonday, reason: 'Medical appointment',
+        type: 'sick',
+        startDate: nextMonthMonday,
+        endDate: nextMonthMonday,
+        reason: 'Medical appointment',
       }),
       201,
       'Tom pending leave',
@@ -357,16 +446,29 @@ async function main() {
   }
 
   // ---- expenses ----
-  const expense = async (who: HiredWorker, category: string, description: string, amountMinor: number, daysAgo: number) =>
+  const expense = async (
+    who: HiredWorker,
+    category: string,
+    description: string,
+    amountMinor: number,
+    daysAgo: number,
+  ) =>
     ok(
       await who.portal!.post('/expenses').send({
-        category, description, amountMinor, incurredOn: addDays(today, -daysAgo),
+        category,
+        description,
+        amountMinor,
+        incurredOn: addDays(today, -daysAgo),
       }),
       201,
       `expense ${description}`,
     ).body.id as string;
   const decide = async (id: string, decision: 'approved' | 'rejected', note?: string) =>
-    ok(await admin.post(`/expenses/${id}/decision`).send({ decision, note }), 200, 'expense decision');
+    ok(
+      await admin.post(`/expenses/${id}/decision`).send({ decision, note }),
+      200,
+      'expense decision',
+    );
 
   // Approved BEFORE last month's run is created, so that run reimburses it.
   await decide(await expense(lena, 'equipment', 'Mechanical keyboard', 14_900, 40), 'approved');
@@ -441,10 +543,17 @@ async function main() {
   ] as const) {
     ok(
       await globexAdmin.post('/workers').send({
-        type: 'employee', firstName, lastName,
+        type: 'employee',
+        firstName,
+        lastName,
         email: `${firstName}.${lastName}@globex.test`.toLowerCase(),
-        countryCode, jobTitle: 'Research Scientist', department: 'R&D',
-        startDate: firstOf(1), salaryMinor, payBasis: 'annual', sendInvite: false,
+        countryCode,
+        jobTitle: 'Research Scientist',
+        department: 'R&D',
+        startDate: firstOf(1),
+        salaryMinor,
+        payBasis: 'annual',
+        sendInvite: false,
       }),
       201,
       `Globex hire ${firstName}`,

@@ -154,7 +154,9 @@ function InvoiceView({ invoice }: { invoice: InvoiceDetailDto }) {
             </div>
             <div className="flex justify-between gap-6 border-t-2 border-ink-200 pt-2">
               <dt className="font-semibold text-ink-900">Total due</dt>
-              <dd className="tabular text-lg font-semibold text-ink-900">{money(invoice.totalMinor)}</dd>
+              <dd className="tabular text-lg font-semibold text-ink-900">
+                {money(invoice.totalMinor)}
+              </dd>
             </div>
           </dl>
 
@@ -170,7 +172,10 @@ function InvoiceView({ invoice }: { invoice: InvoiceDetailDto }) {
             )}
             {invoice.payrollRunId && (
               <p className="print:hidden">
-                <Link to={`/payroll/${invoice.payrollRunId}`} className="font-medium text-brand-700 hover:underline">
+                <Link
+                  to={`/payroll/${invoice.payrollRunId}`}
+                  className="font-medium text-brand-700 hover:underline"
+                >
                   View the payroll run this invoice covers
                 </Link>
               </p>
@@ -188,15 +193,21 @@ function InvoiceView({ invoice }: { invoice: InvoiceDetailDto }) {
         onConfirm={() => void onPay()}
       >
         <p>
-          <strong>This is a simulated payment</strong> — no money moves and no card or bank account is
-          charged. It marks invoice {invoice.number} as paid so the payroll run can be processed.
+          <strong>This is a simulated payment</strong> — no money moves and no card or bank account
+          is charged. It marks invoice {invoice.number} as paid so the payroll run can be processed.
         </p>
       </ConfirmDialog>
     </>
   );
 }
 
-function LinesTable({ invoice, money }: { invoice: InvoiceDetailDto; money: (minor: number) => string }) {
+function LinesTable({
+  invoice,
+  money,
+}: {
+  invoice: InvoiceDetailDto;
+  money: (minor: number) => string;
+}) {
   return (
     <div className="overflow-x-auto pt-6">
       <table className="min-w-full text-sm">

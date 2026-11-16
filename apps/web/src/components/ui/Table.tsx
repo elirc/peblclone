@@ -30,7 +30,10 @@ interface TableProps<T> {
 export function Table<T>({ columns, rows, rowKey, onRowClick, empty, caption }: TableProps<T>) {
   if (rows.length === 0 && empty) return <>{empty}</>;
   return (
-    <div className="overflow-x-auto">
+    // `relative` matters: visually-hidden (sr-only) content in a cell is absolutely
+    // positioned. Without a positioned ancestor here it escapes this scroll box and
+    // widens the whole PAGE on small screens (found by the UI sweep, journal ch. 18).
+    <div className="relative overflow-x-auto">
       <table className="min-w-full text-left text-sm">
         {caption && <caption className="sr-only">{caption}</caption>}
         <thead>

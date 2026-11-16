@@ -11,8 +11,22 @@ afterEach(() => vi.unstubAllGlobals());
 
 const admin = makeUser('client_admin');
 const members: TeamMemberDto[] = [
-  { id: admin.id, email: admin.email, fullName: admin.fullName, role: 'client_admin', isActive: true, createdAt: '2026-01-01T00:00:00.000Z' },
-  { id: 'm2', email: 'mo@example.com', fullName: 'Mo Manager', role: 'client_manager', isActive: true, createdAt: '2026-02-01T00:00:00.000Z' },
+  {
+    id: admin.id,
+    email: admin.email,
+    fullName: admin.fullName,
+    role: 'client_admin',
+    isActive: true,
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'm2',
+    email: 'mo@example.com',
+    fullName: 'Mo Manager',
+    role: 'client_manager',
+    isActive: true,
+    createdAt: '2026-02-01T00:00:00.000Z',
+  },
 ];
 const invite: InviteDto = {
   id: 'inv1',
@@ -32,10 +46,16 @@ describe('TeamPage', () => {
     mockFetch(signedInAs(admin), team, invites);
     renderPage(<TeamPage />, { path: '/team', pattern: '/team' });
 
-    expect(await screen.findByRole('button', { name: 'Deactivate Mo Manager' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Deactivate Mo Manager' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('combobox', { name: 'Role for Mo Manager' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: `Deactivate ${admin.fullName}` })).not.toBeInTheDocument();
-    expect(screen.queryByRole('combobox', { name: `Role for ${admin.fullName}` })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: `Deactivate ${admin.fullName}` }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('combobox', { name: `Role for ${admin.fullName}` }),
+    ).not.toBeInTheDocument();
     expect(await screen.findByText('new@example.com')).toBeInTheDocument();
   });
 
@@ -62,7 +82,9 @@ describe('TeamPage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Deactivate Mo Manager?' });
     await userEvent.click(within(dialog).getByRole('button', { name: 'Deactivate' }));
 
-    await waitFor(() => expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ isActive: false }));
+    await waitFor(() =>
+      expect(calls.find((c) => c.method === 'PATCH')?.body).toEqual({ isActive: false }),
+    );
   });
 
   it('shows the accept link after creating an invite, noting that no email is sent', async () => {
@@ -94,6 +116,9 @@ describe('TeamPage', () => {
       'http://localhost:5173/accept-invite?token=abc123abc123abc123abc123',
     );
     expect(within(done).getByRole('button', { name: 'Copy' })).toBeInTheDocument();
-    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({ email: 'sam@example.com', role: 'client_admin' });
+    expect(calls.find((c) => c.method === 'POST')?.body).toEqual({
+      email: 'sam@example.com',
+      role: 'client_admin',
+    });
   });
 });

@@ -31,7 +31,9 @@ function nextBusinessDay(date: string): string {
   return d;
 }
 
-const TINY_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n').toString('base64');
+const TINY_PDF = Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n').toString(
+  'base64',
+);
 
 describe('journey: from signup to a paid payslip', () => {
   it('hires, onboards, pays and bills for one employee in Germany', async () => {
@@ -40,7 +42,8 @@ describe('journey: from signup to a paid payslip', () => {
     const year = now.getUTCFullYear();
     const month = now.getUTCMonth() + 1;
     // Started on the 1st of last month, so this month is a full month of pay.
-    const startDate = month === 1 ? firstDayOfMonth(year - 1, 12) : firstDayOfMonth(year, month - 1);
+    const startDate =
+      month === 1 ? firstDayOfMonth(year - 1, 12) : firstDayOfMonth(year, month - 1);
 
     // ── 1. A company signs up ────────────────────────────────────────────────
     const signup = await anonymous().post('/auth/register').send({
@@ -127,7 +130,9 @@ describe('journey: from signup to a paid payslip', () => {
       expect(
         (await admin.post(`/documents/${doc.id}/review`).send({ decision: 'verified' })).status,
       ).toBe(403);
-      const review = await platform.post(`/documents/${doc.id}/review`).send({ decision: 'verified' });
+      const review = await platform
+        .post(`/documents/${doc.id}/review`)
+        .send({ decision: 'verified' });
       expect(review.body.status).toBe('verified');
     }
 
@@ -175,7 +180,10 @@ describe('journey: from signup to a paid payslip', () => {
     });
     expect(expense.status).toBe(201);
     expect(expense.body.currency).toBe('EUR');
-    await admin.post(`/expenses/${expense.body.id}/decision`).send({ decision: 'approved' }).expect(200);
+    await admin
+      .post(`/expenses/${expense.body.id}/decision`)
+      .send({ decision: 'approved' })
+      .expect(200);
 
     // ── 9. Payroll for this month ────────────────────────────────────────────
     const run = await admin
@@ -191,7 +199,9 @@ describe('journey: from signup to a paid payslip', () => {
     expect(run.body.employerCostMinor).toBe(quotedEmployerCost);
     expect(run.body.totalCostMinor).toBe(500_000 + quotedEmployerCost + 12_345);
 
-    expect((await admin.post(`/payroll/runs/${runId}/submit`)).body.status).toBe('pending_approval');
+    expect((await admin.post(`/payroll/runs/${runId}/submit`)).body.status).toBe(
+      'pending_approval',
+    );
     const approved = await admin.post(`/payroll/runs/${runId}/approve`);
     expect(approved.body.status).toBe('approved');
     const invoiceId: string = approved.body.invoiceId;

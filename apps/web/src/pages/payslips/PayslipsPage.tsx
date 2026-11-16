@@ -33,7 +33,11 @@ export default function PayslipsPage() {
   // Which payslip's modal is open (an id: the payslip itself stays in the query cache).
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const payslips = usePayslips({ workerId: (isStaff && workerId) || undefined, limit: PAGE_SIZE, offset });
+  const payslips = usePayslips({
+    workerId: (isStaff && workerId) || undefined,
+    limit: PAGE_SIZE,
+    offset,
+  });
   const workers = useWorkerOptions(isStaff);
   const open = payslips.data?.items.find((slip) => slip.id === openId);
 
@@ -42,11 +46,20 @@ export default function PayslipsPage() {
       key: 'period',
       header: 'Period',
       cell: (slip) => (
-        <span className="font-medium text-ink-900">{formatPeriod(slip.periodYear, slip.periodMonth)}</span>
+        <span className="font-medium text-ink-900">
+          {formatPeriod(slip.periodYear, slip.periodMonth)}
+        </span>
       ),
     },
-    ...(isStaff ? [{ key: 'worker', header: 'Worker', cell: (slip: PayslipDto) => slip.workerName }] : []),
-    { key: 'gross', header: 'Gross', align: 'right', cell: (slip) => formatMoney(slip.grossMinor, slip.currency) },
+    ...(isStaff
+      ? [{ key: 'worker', header: 'Worker', cell: (slip: PayslipDto) => slip.workerName }]
+      : []),
+    {
+      key: 'gross',
+      header: 'Gross',
+      align: 'right',
+      cell: (slip) => formatMoney(slip.grossMinor, slip.currency),
+    },
     {
       key: 'deductions',
       header: 'Deductions',
@@ -57,7 +70,11 @@ export default function PayslipsPage() {
       key: 'net',
       header: 'Net pay',
       align: 'right',
-      cell: (slip) => <span className="font-medium text-ink-900">{formatMoney(slip.netMinor, slip.currency)}</span>,
+      cell: (slip) => (
+        <span className="font-medium text-ink-900">
+          {formatMoney(slip.netMinor, slip.currency)}
+        </span>
+      ),
     },
     { key: 'paid', header: 'Paid', cell: (slip) => formatDate(slip.paidAt) },
   ];
@@ -153,9 +170,15 @@ export default function PayslipsPage() {
         open={open !== undefined}
         onClose={() => setOpenId(null)}
         title={open ? `Payslip · ${formatPeriod(open.periodYear, open.periodMonth)}` : 'Payslip'}
-        description={open ? `${open.workerName} · paid ${formatDate(open.paidAt)} · ${open.currency}` : undefined}
+        description={
+          open
+            ? `${open.workerName} · paid ${formatDate(open.paidAt)} · ${open.currency}`
+            : undefined
+        }
       >
-        {open && <PayItemBreakdown item={open} currency={open.currency} showEmployerCosts={isStaff} />}
+        {open && (
+          <PayItemBreakdown item={open} currency={open.currency} showEmployerCosts={isStaff} />
+        )}
       </Modal>
     </>
   );

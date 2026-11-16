@@ -24,7 +24,8 @@ export function useOrganization() {
 export function useUpdateOrganization() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: UpdateOrganizationInput) => api.patch<OrganizationDto>('/organization', input),
+    mutationFn: (input: UpdateOrganizationInput) =>
+      api.patch<OrganizationDto>('/organization', input),
     onSuccess: (organization) => {
       queryClient.setQueryData(keys.organization, organization);
       // The session user carries `organizationName` (shown in the app shell), and the
@@ -60,7 +61,8 @@ export function useTeamInvites(enabled: boolean) {
 
 export function useCreateTeamInvite() {
   return useMutation({
-    mutationFn: (input: CreateTeamInviteInput) => api.post<InviteCreatedDto>('/team/invites', input),
+    mutationFn: (input: CreateTeamInviteInput) =>
+      api.post<InviteCreatedDto>('/team/invites', input),
     onSuccess: () => invalidate(keys.team, keys.audit),
   });
 }

@@ -106,7 +106,10 @@ describe('team management', () => {
       .send({ email: 'Teammate@Example.test', role: 'client_manager' });
 
     expect(res.status).toBe(201);
-    expect(res.body.invite).toMatchObject({ email: 'teammate@example.test', role: 'client_manager' });
+    expect(res.body.invite).toMatchObject({
+      email: 'teammate@example.test',
+      role: 'client_manager',
+    });
     expect(res.body.acceptUrl).toMatch(/\/accept-invite\?token=.{40,}/);
 
     const pending = await admin.get('/team/invites');
@@ -196,8 +199,11 @@ describe('team management', () => {
     const worker = await loginAsWorker(await createWorker(org.id));
 
     expect(
-      (await manager.client.post('/team/invites').send({ email: 'a@b.test', role: 'client_manager' }))
-        .status,
+      (
+        await manager.client
+          .post('/team/invites')
+          .send({ email: 'a@b.test', role: 'client_manager' })
+      ).status,
     ).toBe(403);
     expect((await manager.client.get('/team')).status).toBe(200);
     expect((await worker.client.get('/team')).status).toBe(403);

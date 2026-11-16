@@ -32,9 +32,7 @@ function days(n: number): string {
 
 /** Number the sections in order, so adding or removing one never leaves a gap. */
 function numberSections(sections: readonly { heading: string; text: string }[]): string {
-  return sections
-    .map((s, i) => `${i + 1}. ${s.heading.toUpperCase()}\n${s.text}`)
-    .join('\n\n');
+  return sections.map((s, i) => `${i + 1}. ${s.heading.toUpperCase()}\n${s.text}`).join('\n\n');
 }
 
 function employeeAgreement(terms: ContractTerms): RenderedContract {

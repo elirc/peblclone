@@ -21,7 +21,9 @@ const countries = route('GET', '/countries', () =>
   }),
 );
 const runs = (items: PayrollRunDto[]) =>
-  route('GET', '/payroll/runs', () => jsonResponse({ items, total: items.length, limit: 25, offset: 0 }));
+  route('GET', '/payroll/runs', () =>
+    jsonResponse({ items, total: items.length, limit: 25, offset: 0 }),
+  );
 
 describe('PayrollRunsPage', () => {
   it('lists runs with period, formatted total and status', async () => {
@@ -43,9 +45,11 @@ describe('PayrollRunsPage', () => {
     await screen.findByRole('table', { name: 'Payroll runs' });
     await userEvent.selectOptions(screen.getByLabelText('Status'), 'paid');
     await waitFor(() =>
-      expect(calls.some((c) => c.url.startsWith('/api/v1/payroll/runs?') && c.url.includes('status=paid'))).toBe(
-        true,
-      ),
+      expect(
+        calls.some(
+          (c) => c.url.startsWith('/api/v1/payroll/runs?') && c.url.includes('status=paid'),
+        ),
+      ).toBe(true),
     );
   });
 
@@ -56,7 +60,12 @@ describe('PayrollRunsPage', () => {
       runs([]),
       route('POST', '/payroll/runs', () =>
         jsonResponse(
-          { error: { code: 'run_exists', message: 'A payroll run for this country and month already exists' } },
+          {
+            error: {
+              code: 'run_exists',
+              message: 'A payroll run for this country and month already exists',
+            },
+          },
           409,
         ),
       ),

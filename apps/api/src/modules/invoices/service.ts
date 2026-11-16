@@ -39,7 +39,11 @@ function toInvoiceDto(row: InvoiceRow): InvoiceDto {
   };
 }
 
-async function loadInvoiceDetail(dbOrTx: DbOrTx, orgId: string, invoiceId: string): Promise<InvoiceDetailDto> {
+async function loadInvoiceDetail(
+  dbOrTx: DbOrTx,
+  orgId: string,
+  invoiceId: string,
+): Promise<InvoiceDetailDto> {
   const [row] = await dbOrTx
     .select({ invoice: invoices, organizationName: organizations.name })
     .from(invoices)
@@ -116,7 +120,8 @@ export async function payInvoice(actor: Actor, invoiceId: string): Promise<Invoi
         ),
       )
       .returning({ id: invoices.id, totalMinor: invoices.totalMinor });
-    if (!updated) throw conflict(`A ${current.status} invoice cannot be paid`, 'invalid_transition');
+    if (!updated)
+      throw conflict(`A ${current.status} invoice cannot be paid`, 'invalid_transition');
 
     await recordAudit(tx, actor, {
       action: 'invoice.paid',

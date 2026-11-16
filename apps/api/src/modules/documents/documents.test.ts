@@ -106,22 +106,20 @@ describe('GET /workers/:id/documents', () => {
       expect(res.body.items).toHaveLength(2);
     }
     const res = await admin.get(`/workers/${worker.id}/documents`);
-    expect(Object.keys(res.body.items[0]).sort()).toEqual(
-      [
-        'createdAt',
-        'fileName',
-        'id',
-        'kind',
-        'mimeType',
-        'reviewNote',
-        'reviewedAt',
-        'sizeBytes',
-        'status',
-        'title',
-        'uploadedAt',
-        'workerId',
-      ],
-    );
+    expect(Object.keys(res.body.items[0]).sort()).toEqual([
+      'createdAt',
+      'fileName',
+      'id',
+      'kind',
+      'mimeType',
+      'reviewNote',
+      'reviewedAt',
+      'sizeBytes',
+      'status',
+      'title',
+      'uploadedAt',
+      'workerId',
+    ]);
   });
 
   it('answers 404 to a worker asking for a colleague’s documents', async () => {
@@ -154,7 +152,9 @@ describe('POST /workers/:id/documents', () => {
     await db
       .update(onboardingTasks)
       .set({ status: 'completed', completedAt: new Date() })
-      .where(and(eq(onboardingTasks.workerId, worker.id), eq(onboardingTasks.key, 'documents_verified')));
+      .where(
+        and(eq(onboardingTasks.workerId, worker.id), eq(onboardingTasks.key, 'documents_verified')),
+      );
 
     const res = await admin
       .post(`/workers/${worker.id}/documents`)
@@ -180,7 +180,9 @@ describe('POST /workers/:id/documents', () => {
       .set({ status: 'completed', completedAt: new Date() })
       .where(eq(onboardingTasks.workerId, worker.id));
 
-    const res = await admin.post(`/workers/${worker.id}/documents`).send({ kind: 'other', title: 'Visa' });
+    const res = await admin
+      .post(`/workers/${worker.id}/documents`)
+      .send({ kind: 'other', title: 'Visa' });
     expect(res.status).toBe(201);
     expect(await taskStatus(worker.id, 'documents_verified')).toBe('completed');
   });
@@ -188,7 +190,9 @@ describe('POST /workers/:id/documents', () => {
   it('validates the body', async () => {
     const { org, admin } = await tenant();
     const worker = await onboardingWorker(org.id);
-    const res = await admin.post(`/workers/${worker.id}/documents`).send({ kind: 'selfie', title: '' });
+    const res = await admin
+      .post(`/workers/${worker.id}/documents`)
+      .send({ kind: 'selfie', title: '' });
     expect(res.status).toBe(400);
     expect(Object.keys(res.body.error.details).sort()).toEqual(['kind', 'title']);
   });
@@ -204,7 +208,9 @@ describe('POST /workers/:id/documents', () => {
 
     expect((await me.client.post(`/workers/${worker.id}/documents`).send(body)).status).toBe(403);
     expect((await a.admin.post(`/workers/${foreign.id}/documents`).send(body)).status).toBe(404);
-    expect((await manager.client.post(`/workers/${worker.id}/documents`).send(body)).status).toBe(201);
+    expect((await manager.client.post(`/workers/${worker.id}/documents`).send(body)).status).toBe(
+      201,
+    );
   });
 });
 
@@ -259,7 +265,9 @@ describe('POST /documents/:id/file (upload) and GET (download)', () => {
 
     // And the download header carries a sanitised name: no slashes, no quotes.
     const file = await download(admin, doc.id);
-    expect(file.headers['content-disposition']).toBe('attachment; filename="_.._.._evil_name_.pdf"');
+    expect(file.headers['content-disposition']).toBe(
+      'attachment; filename="_.._.._evil_name_.pdf"',
+    );
   });
 
   it('accepts PNG and JPEG files whose bytes match', async () => {
@@ -337,7 +345,11 @@ describe('POST /documents/:id/file (upload) and GET (download)', () => {
       .post(`/documents/${doc.id}/file`)
       .send({ fileName: '', mimeType: 'text/html', dataBase64: '' });
     expect(res.status).toBe(400);
-    expect(Object.keys(res.body.error.details).sort()).toEqual(['dataBase64', 'fileName', 'mimeType']);
+    expect(Object.keys(res.body.error.details).sort()).toEqual([
+      'dataBase64',
+      'fileName',
+      'mimeType',
+    ]);
   });
 
   it('replacing a file deletes the old one and clears the previous review', async () => {
@@ -356,13 +368,20 @@ describe('POST /documents/:id/file (upload) and GET (download)', () => {
     const v2 = Buffer.concat([PDF, Buffer.from('% second version\n')]);
     const res = await admin.post(`/documents/${doc.id}/file`).send(pdfUpload('v2.pdf', v2));
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: 'submitted', fileName: 'v2.pdf', reviewNote: null, reviewedAt: null });
+    expect(res.body).toMatchObject({
+      status: 'submitted',
+      fileName: 'v2.pdf',
+      reviewNote: null,
+      reviewedAt: null,
+    });
 
     const secondKey = (await reload(doc.id)).storageKey ?? '';
     expect(secondKey).not.toBe(firstKey);
     expect(existsSync(storagePath(firstKey))).toBe(false);
     expect(Buffer.compare((await download(admin, doc.id)).body, v2)).toBe(0);
-    const [latest] = (await auditsFor('document.uploaded')).filter((a) => a.metadata.replaced === true);
+    const [latest] = (await auditsFor('document.uploaded')).filter(
+      (a) => a.metadata.replaced === true,
+    );
     expect(latest).toBeDefined();
   });
 
@@ -382,10 +401,14 @@ describe('POST /documents/:id/file (upload) and GET (download)', () => {
     const theirDoc = await insertDocument(colleague);
     const me = await loginAsWorker(mine);
 
-    expect((await me.client.post(`/documents/${myDoc.id}/file`).send(pdfUpload())).status).toBe(200);
+    expect((await me.client.post(`/documents/${myDoc.id}/file`).send(pdfUpload())).status).toBe(
+      200,
+    );
     expect((await download(me.client, myDoc.id)).status).toBe(200);
 
-    expect((await me.client.post(`/documents/${theirDoc.id}/file`).send(pdfUpload())).status).toBe(404);
+    expect((await me.client.post(`/documents/${theirDoc.id}/file`).send(pdfUpload())).status).toBe(
+      404,
+    );
     expect((await reload(theirDoc.id)).status).toBe('requested');
   });
 
@@ -395,7 +418,9 @@ describe('POST /documents/:id/file (upload) and GET (download)', () => {
     const foreignDoc = await insertDocument(await onboardingWorker(b.org.id));
     await b.admin.post(`/documents/${foreignDoc.id}/file`).send(pdfUpload());
 
-    expect((await a.admin.post(`/documents/${foreignDoc.id}/file`).send(pdfUpload())).status).toBe(404);
+    expect((await a.admin.post(`/documents/${foreignDoc.id}/file`).send(pdfUpload())).status).toBe(
+      404,
+    );
     expect((await download(a.admin, foreignDoc.id)).status).toBe(404);
   });
 
@@ -421,7 +446,9 @@ describe('POST /documents/:id/review', () => {
     const platform = await createPlatformAdmin(org.id);
     const { doc } = await submittedDoc(org.id);
 
-    const res = await platform.client.post(`/documents/${doc.id}/review`).send({ decision: 'verified' });
+    const res = await platform.client
+      .post(`/documents/${doc.id}/review`)
+      .send({ decision: 'verified' });
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'verified', reviewNote: null });
     expect(res.body.reviewedAt).toEqual(expect.any(String));
@@ -448,7 +475,11 @@ describe('POST /documents/:id/review', () => {
     const platform = await createPlatformAdmin(org.id);
     const worker = await onboardingWorker(org.id);
     const first = await insertDocument(worker, { status: 'submitted' });
-    const second = await insertDocument(worker, { kind: 'tax_form', title: 'Tax', status: 'submitted' });
+    const second = await insertDocument(worker, {
+      kind: 'tax_form',
+      title: 'Tax',
+      status: 'submitted',
+    });
 
     await platform.client.post(`/documents/${first.id}/review`).send({ decision: 'verified' });
     expect(await taskStatus(worker.id, 'documents_verified')).toBe('pending');
@@ -468,7 +499,9 @@ describe('POST /documents/:id/review', () => {
     await db
       .update(onboardingTasks)
       .set({ status: 'pending', completedAt: null })
-      .where(and(eq(onboardingTasks.workerId, worker.id), eq(onboardingTasks.key, 'documents_verified')));
+      .where(
+        and(eq(onboardingTasks.workerId, worker.id), eq(onboardingTasks.key, 'documents_verified')),
+      );
     const { doc } = await submittedDoc(org.id, worker);
 
     await platform.client.post(`/documents/${doc.id}/review`).send({ decision: 'verified' });
@@ -497,7 +530,9 @@ describe('POST /documents/:id/review', () => {
     const { worker, doc } = await submittedDoc(org.id);
     const me = await loginAsWorker(worker);
     for (const c of [admin, manager.client, me.client]) {
-      expect((await c.post(`/documents/${doc.id}/review`).send({ decision: 'verified' })).status).toBe(403);
+      expect(
+        (await c.post(`/documents/${doc.id}/review`).send({ decision: 'verified' })).status,
+      ).toBe(403);
     }
     expect((await reload(doc.id)).status).toBe('submitted');
   });
@@ -509,17 +544,24 @@ describe('POST /documents/:id/review', () => {
     const noOrg = await createPlatformAdmin();
     const wrongOrg = await createPlatformAdmin(b.org.id);
 
-    const missing = await noOrg.client.post(`/documents/${doc.id}/review`).send({ decision: 'verified' });
+    const missing = await noOrg.client
+      .post(`/documents/${doc.id}/review`)
+      .send({ decision: 'verified' });
     expect(missing.status).toBe(400);
     expect(missing.body.error.code).toBe('organization_required');
-    expect((await wrongOrg.client.post(`/documents/${doc.id}/review`).send({ decision: 'verified' })).status).toBe(404);
+    expect(
+      (await wrongOrg.client.post(`/documents/${doc.id}/review`).send({ decision: 'verified' }))
+        .status,
+    ).toBe(404);
   });
 
   it('validates the decision', async () => {
     const { org } = await tenant();
     const platform = await createPlatformAdmin(org.id);
     const { doc } = await submittedDoc(org.id);
-    const res = await platform.client.post(`/documents/${doc.id}/review`).send({ decision: 'maybe' });
+    const res = await platform.client
+      .post(`/documents/${doc.id}/review`)
+      .send({ decision: 'maybe' });
     expect(res.status).toBe(400);
     expect(res.body.error.details).toHaveProperty('decision');
   });

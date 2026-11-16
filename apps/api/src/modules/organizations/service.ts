@@ -148,17 +148,15 @@ export async function inviteTeamMember(
   return db.transaction(async (tx) => {
     // Re-inviting replaces any earlier unaccepted invite for the same address,
     // so there is only ever one live link per person.
-    await tx
-      .delete(invitations)
-      .where(
-        and(
-          eq(invitations.organizationId, orgId),
-          eq(invitations.email, input.email),
-          isNull(invitations.acceptedAt),
-          // Team invites only: never delete a worker's portal invite from here.
-          isNull(invitations.workerId),
-        ),
-      );
+    await tx.delete(invitations).where(
+      and(
+        eq(invitations.organizationId, orgId),
+        eq(invitations.email, input.email),
+        isNull(invitations.acceptedAt),
+        // Team invites only: never delete a worker's portal invite from here.
+        isNull(invitations.workerId),
+      ),
+    );
     const { invite, acceptUrl } = await createInvitation(tx, {
       organizationId: orgId,
       email: input.email,

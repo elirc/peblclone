@@ -63,7 +63,13 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   // Note: a non-admin sending X-Org-Id is simply ignored. The tenant always
   // comes from the server-side user row, never from anything the client says.
 
-  req.actor = { userId: user.id, fullName: user.fullName, role: user.role, organizationId, workerId };
+  req.actor = {
+    userId: user.id,
+    fullName: user.fullName,
+    role: user.role,
+    organizationId,
+    workerId,
+  };
   req.sessionId = session.id;
   next();
 }

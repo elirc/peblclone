@@ -17,9 +17,12 @@ server.on('error', (err) => {
 });
 
 // Housekeeping: expired sessions are useless rows; sweep them hourly.
-const sweep = setInterval(() => {
-  deleteExpiredSessions().catch((err) => logger.warn({ err }, 'Session sweep failed'));
-}, 60 * 60 * 1000);
+const sweep = setInterval(
+  () => {
+    deleteExpiredSessions().catch((err) => logger.warn({ err }, 'Session sweep failed'));
+  },
+  60 * 60 * 1000,
+);
 sweep.unref();
 
 /** Graceful shutdown: stop accepting connections, let in-flight requests finish, close the pool. */

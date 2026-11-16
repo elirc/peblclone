@@ -57,7 +57,14 @@ export const DOCUMENT_KINDS = [
 ] as const;
 export type DocumentKind = (typeof DOCUMENT_KINDS)[number];
 
-export const CONTRACT_STATUSES = ['draft', 'sent', 'signed', 'active', 'terminated', 'void'] as const;
+export const CONTRACT_STATUSES = [
+  'draft',
+  'sent',
+  'signed',
+  'active',
+  'terminated',
+  'void',
+] as const;
 export type ContractStatus = (typeof CONTRACT_STATUSES)[number];
 
 export const TIME_OFF_TYPES = ['vacation', 'sick', 'unpaid', 'parental'] as const;

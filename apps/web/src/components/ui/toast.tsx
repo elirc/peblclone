@@ -1,6 +1,14 @@
 import clsx from 'clsx';
 import { CheckCircle2, CircleAlert, X } from 'lucide-react';
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { errorMessage } from '../../lib/api';
 
 interface Toast {

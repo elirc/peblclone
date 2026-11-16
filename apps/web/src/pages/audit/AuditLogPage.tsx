@@ -73,7 +73,8 @@ function formatMetaValue(key: string, value: unknown, metadata: Record<string, u
   if (typeof value === 'number' && key.endsWith('Minor') && typeof metadata.currency === 'string') {
     return formatMoney(value, metadata.currency);
   }
-  if (typeof value === 'string') return UUID.test(value) ? `${value.slice(0, 8)}…` : truncate(value);
+  if (typeof value === 'string')
+    return UUID.test(value) ? `${value.slice(0, 8)}…` : truncate(value);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (Array.isArray(value) && value.every((v) => typeof v === 'string' || typeof v === 'number')) {
     return truncate(value.join(', '));
@@ -90,7 +91,10 @@ function MetadataSummary({ metadata }: { metadata: Record<string, unknown> }) {
       {shown.map(([key, value]) => (
         <div key={key} className="flex min-w-0 gap-1">
           <dt className="text-ink-500">{key}:</dt>
-          <dd className="break-all text-ink-800" title={typeof value === 'string' ? value : undefined}>
+          <dd
+            className="break-all text-ink-800"
+            title={typeof value === 'string' ? value : undefined}
+          >
             {formatMetaValue(key, value, metadata)}
           </dd>
         </div>
@@ -138,12 +142,20 @@ const columns: Column<AuditLogDto>[] = [
           ) : (
             label
           )}
-          {entry.entityId && <span className="ml-1 font-mono text-xs text-ink-500">{entry.entityId.slice(0, 8)}</span>}
+          {entry.entityId && (
+            <span className="ml-1 font-mono text-xs text-ink-500">
+              {entry.entityId.slice(0, 8)}
+            </span>
+          )}
         </span>
       );
     },
   },
-  { key: 'details', header: 'Details', cell: (entry) => <MetadataSummary metadata={entry.metadata} /> },
+  {
+    key: 'details',
+    header: 'Details',
+    cell: (entry) => <MetadataSummary metadata={entry.metadata} />,
+  },
 ];
 
 export default function AuditLogPage() {
@@ -192,7 +204,11 @@ export default function AuditLogPage() {
               empty={
                 <EmptyState
                   icon={<History className="h-6 w-6" aria-hidden />}
-                  title={entityType ? `No ${humanize(entityType).toLowerCase()} events` : 'Nothing recorded yet'}
+                  title={
+                    entityType
+                      ? `No ${humanize(entityType).toLowerCase()} events`
+                      : 'Nothing recorded yet'
+                  }
                   description={
                     entityType
                       ? undefined

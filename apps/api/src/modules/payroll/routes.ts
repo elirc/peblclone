@@ -7,7 +7,12 @@ import {
 import { Router } from 'express';
 import { getActor } from '../../lib/actor';
 import { parseBody, parseQuery, uuidParam } from '../../lib/http';
-import { authenticate, requireAdmin, requirePlatformAdmin, requireStaff } from '../../middleware/auth';
+import {
+  authenticate,
+  requireAdmin,
+  requirePlatformAdmin,
+  requireStaff,
+} from '../../middleware/auth';
 import * as service from './service';
 
 export const payrollRouter = Router();
@@ -28,9 +33,14 @@ payrollRouter.get('/payroll/runs/:id', authenticate, requireStaff, async (req, r
   res.json(await service.getRun(getActor(req), uuidParam(req)));
 });
 
-payrollRouter.post('/payroll/runs/:id/recalculate', authenticate, requireAdmin, async (req, res) => {
-  res.json(await service.recalculateRun(getActor(req), uuidParam(req)));
-});
+payrollRouter.post(
+  '/payroll/runs/:id/recalculate',
+  authenticate,
+  requireAdmin,
+  async (req, res) => {
+    res.json(await service.recalculateRun(getActor(req), uuidParam(req)));
+  },
+);
 
 payrollRouter.delete('/payroll/runs/:id', authenticate, requireAdmin, async (req, res) => {
   await service.deleteRun(getActor(req), uuidParam(req));

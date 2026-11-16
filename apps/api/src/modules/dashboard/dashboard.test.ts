@@ -49,16 +49,64 @@ async function insertInvoice(
 
 async function insertPendingWork(organizationId: string, worker: WorkerRow) {
   await db.insert(timeOffRequests).values([
-    { organizationId, workerId: worker.id, type: 'vacation', status: 'pending', startDate: '2026-07-01', endDate: '2026-07-03', days: 3 },
-    { organizationId, workerId: worker.id, type: 'vacation', status: 'approved', startDate: '2026-08-01', endDate: '2026-08-03', days: 3 },
+    {
+      organizationId,
+      workerId: worker.id,
+      type: 'vacation',
+      status: 'pending',
+      startDate: '2026-07-01',
+      endDate: '2026-07-03',
+      days: 3,
+    },
+    {
+      organizationId,
+      workerId: worker.id,
+      type: 'vacation',
+      status: 'approved',
+      startDate: '2026-08-01',
+      endDate: '2026-08-03',
+      days: 3,
+    },
   ]);
   await db.insert(expenses).values([
-    { organizationId, workerId: worker.id, category: 'meals', description: 'Lunch', amountMinor: 1_000, currency: 'EUR', incurredOn: '2026-01-01', status: 'submitted' },
-    { organizationId, workerId: worker.id, category: 'meals', description: 'Dinner', amountMinor: 1_000, currency: 'EUR', incurredOn: '2026-01-01', status: 'approved' },
+    {
+      organizationId,
+      workerId: worker.id,
+      category: 'meals',
+      description: 'Lunch',
+      amountMinor: 1_000,
+      currency: 'EUR',
+      incurredOn: '2026-01-01',
+      status: 'submitted',
+    },
+    {
+      organizationId,
+      workerId: worker.id,
+      category: 'meals',
+      description: 'Dinner',
+      amountMinor: 1_000,
+      currency: 'EUR',
+      incurredOn: '2026-01-01',
+      status: 'approved',
+    },
   ]);
   await db.insert(payrollRuns).values([
-    { organizationId, countryCode: 'DE', currency: 'EUR', periodYear: 2026, periodMonth: 1, status: 'pending_approval' },
-    { organizationId, countryCode: 'DE', currency: 'EUR', periodYear: 2026, periodMonth: 2, status: 'draft' },
+    {
+      organizationId,
+      countryCode: 'DE',
+      currency: 'EUR',
+      periodYear: 2026,
+      periodMonth: 1,
+      status: 'pending_approval',
+    },
+    {
+      organizationId,
+      countryCode: 'DE',
+      currency: 'EUR',
+      periodYear: 2026,
+      periodMonth: 2,
+      status: 'draft',
+    },
   ]);
   await db.insert(contracts).values({
     organizationId,
@@ -93,11 +141,19 @@ describe('GET /dashboard', () => {
     const other = await createTenant();
     await createWorker(t.org.id, { countryCode: 'DE' });
     await createWorker(t.org.id, { countryCode: 'DE', type: 'contractor' });
-    await createWorker(t.org.id, { countryCode: 'DE', status: 'offboarding', endDate: '2027-01-31' });
+    await createWorker(t.org.id, {
+      countryCode: 'DE',
+      status: 'offboarding',
+      endDate: '2027-01-31',
+    });
     await createWorker(t.org.id, { countryCode: 'GB', status: 'onboarding' });
     await createWorker(t.org.id, { countryCode: 'GB', status: 'onboarding', type: 'contractor' });
     await createWorker(t.org.id, { countryCode: 'FR' });
-    await createWorker(t.org.id, { countryCode: 'FR', status: 'terminated', endDate: '2025-06-30' });
+    await createWorker(t.org.id, {
+      countryCode: 'FR',
+      status: 'terminated',
+      endDate: '2025-06-30',
+    });
     await createWorker(t.org.id, { countryCode: 'FR', status: 'cancelled' });
     // Another tenant's workers must not bleed in.
     await createWorker(other.org.id, { countryCode: 'US' });
@@ -162,7 +218,9 @@ describe('GET /dashboard', () => {
     const t = await createTenant();
     const res = await t.admin.get('/dashboard');
     expect(res.body.monthlySpend).toHaveLength(6);
-    expect(res.body.monthlySpend.every((m: { totalUsdMinor: number }) => m.totalUsdMinor === 0)).toBe(true);
+    expect(
+      res.body.monthlySpend.every((m: { totalUsdMinor: number }) => m.totalUsdMinor === 0),
+    ).toBe(true);
     expect(res.body.headcount.total).toBe(0);
     expect(res.body.byCountry).toEqual([]);
   });

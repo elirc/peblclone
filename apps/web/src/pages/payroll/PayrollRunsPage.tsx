@@ -31,7 +31,11 @@ const columns: Column<PayrollRunDto>[] = [
   {
     key: 'period',
     header: 'Period',
-    cell: (run) => <span className="font-medium text-ink-900">{formatPeriod(run.periodYear, run.periodMonth)}</span>,
+    cell: (run) => (
+      <span className="font-medium text-ink-900">
+        {formatPeriod(run.periodYear, run.periodMonth)}
+      </span>
+    ),
   },
   { key: 'country', header: 'Country', cell: (run) => run.countryName },
   { key: 'workers', header: 'Workers', align: 'right', cell: (run) => run.workerCount },
@@ -71,7 +75,10 @@ export default function PayrollRunsPage() {
         description="One run per country per month. Runs are reviewed, approved, invoiced and then paid by Meridian."
         actions={
           isAdmin && (
-            <Button icon={<Plus className="h-4 w-4" aria-hidden />} onClick={() => setCreating(true)}>
+            <Button
+              icon={<Plus className="h-4 w-4" aria-hidden />}
+              onClick={() => setCreating(true)}
+            >
               New payroll run
             </Button>
           )

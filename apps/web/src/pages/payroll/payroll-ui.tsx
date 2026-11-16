@@ -5,7 +5,10 @@ import { Check } from 'lucide-react';
 /** January…December as select options (value = month number 1–12). */
 export const MONTH_OPTIONS = Array.from({ length: 12 }, (_, index) => ({
   value: index + 1,
-  label: new Date(Date.UTC(2000, index, 1)).toLocaleString('en-US', { month: 'long', timeZone: 'UTC' }),
+  label: new Date(Date.UTC(2000, index, 1)).toLocaleString('en-US', {
+    month: 'long',
+    timeZone: 'UTC',
+  }),
 }));
 
 const STEP_LABELS: Record<PayrollRunStatus, string> = {
@@ -51,7 +54,9 @@ export function RunStepper({ status }: { status: PayrollRunStatus }) {
                 className={clsx(
                   'relative z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 text-xs font-semibold',
                   done && 'border-brand-600 bg-brand-600 text-white',
-                  current && !done && 'border-brand-700 bg-white text-brand-800 ring-4 ring-brand-100',
+                  current &&
+                    !done &&
+                    'border-brand-700 bg-white text-brand-800 ring-4 ring-brand-100',
                   !done && !current && 'border-ink-300 bg-white text-ink-400',
                 )}
               >

@@ -52,7 +52,13 @@ async function setup(workerOverrides: Parameters<typeof createWorker>[1] = {}) {
 
 function file(
   client: TestClient,
-  body: Partial<{ workerId: string; type: string; startDate: string; endDate: string; reason: string }>,
+  body: Partial<{
+    workerId: string;
+    type: string;
+    startDate: string;
+    endDate: string;
+    reason: string;
+  }>,
 ) {
   return client.post('/time-off/requests').send({ type: 'vacation', ...week(), ...body });
 }
@@ -231,7 +237,10 @@ describe('POST /time-off/requests', () => {
     const { workerClient } = await setup({ countryCode: 'PH' });
     await filed(workerClient, week(0)); // 5 days pending -> 0 remaining
 
-    const res = await file(workerClient, { startDate: week(1).startDate, endDate: week(1).startDate });
+    const res = await file(workerClient, {
+      startDate: week(1).startDate,
+      endDate: week(1).startDate,
+    });
     expect(res.status).toBe(409);
     expect(res.body.error.code).toBe('insufficient_balance');
 
@@ -279,7 +288,10 @@ describe('GET /time-off/balance', () => {
     const { admin, worker, workerClient } = await setup();
     const approved = await filed(workerClient, week(0)); // 5 days
     await admin.post(`/time-off/requests/${approved.id}/decision`).send({ decision: 'approved' });
-    await filed(workerClient, { startDate: week(2).startDate, endDate: addDays(week(2).startDate, 2) }); // 3 pending
+    await filed(workerClient, {
+      startDate: week(2).startDate,
+      endDate: addDays(week(2).startDate, 2),
+    }); // 3 pending
     await filed(workerClient, { ...week(4), type: 'sick' }); // not vacation: ignored
 
     const res = await workerClient.get(`/time-off/balance?year=${Y}`);
@@ -372,7 +384,9 @@ describe('GET /time-off/requests', () => {
     const res = await workerClient.get('/time-off/requests');
     expect(res.body.items.map((r: { id: string }) => r.id)).toEqual([own.id]);
     expect(res.body.total).toBe(1);
-    expect((await workerClient.get(`/time-off/requests?workerId=${colleague.id}`)).status).toBe(404);
+    expect((await workerClient.get(`/time-off/requests?workerId=${colleague.id}`)).status).toBe(
+      404,
+    );
     expect((await workerClient.get(`/time-off/requests?workerId=${worker.id}`)).status).toBe(200);
   });
 
@@ -442,8 +456,12 @@ describe('POST /time-off/requests/:id/decision', () => {
     const other = await createTenant();
     const request = await filed(workerClient, week(0));
     const body = { decision: 'approved' };
-    expect((await workerClient.post(`/time-off/requests/${request.id}/decision`).send(body)).status).toBe(403);
-    expect((await other.admin.post(`/time-off/requests/${request.id}/decision`).send(body)).status).toBe(404);
+    expect(
+      (await workerClient.post(`/time-off/requests/${request.id}/decision`).send(body)).status,
+    ).toBe(403);
+    expect(
+      (await other.admin.post(`/time-off/requests/${request.id}/decision`).send(body)).status,
+    ).toBe(404);
   });
 
   it('lets only one of two simultaneous decisions win', async () => {

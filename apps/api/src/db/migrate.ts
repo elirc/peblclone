@@ -12,7 +12,9 @@ export async function runMigrations(): Promise<void> {
 // Run directly: `npm run db:migrate`
 if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(import.meta.filename)) {
   runMigrations()
-    .then(() => console.log(`Migrations applied to ${new URL(config.databaseUrl).pathname.slice(1)}`))
+    .then(() =>
+      console.log(`Migrations applied to ${new URL(config.databaseUrl).pathname.slice(1)}`),
+    )
     .catch((err) => {
       console.error(err);
       process.exitCode = 1;

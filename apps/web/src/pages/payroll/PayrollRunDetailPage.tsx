@@ -81,7 +81,9 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
   const breakdownFor = run.items.find((item) => item.id === breakdownId) ?? null;
 
   // The invoice only matters once the run is approved: it gates processing.
-  const invoice = useInvoice(run.status === 'draft' || run.status === 'pending_approval' ? null : run.invoiceId);
+  const invoice = useInvoice(
+    run.status === 'draft' || run.status === 'pending_approval' ? null : run.invoiceId,
+  );
 
   const recalculate = useRecalculatePayrollRun(run.id);
   const submit = useSubmitPayrollRun(run.id);
@@ -94,7 +96,8 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
   const isAdmin = isAdminRole(user);
   const isPlatformAdmin = isPlatformAdminRole(user);
   const isStaff = isStaffRole(user);
-  const can = (to: PayrollRunDetailDto['status']) => canTransition(PAYROLL_RUN_TRANSITIONS, run.status, to);
+  const can = (to: PayrollRunDetailDto['status']) =>
+    canTransition(PAYROLL_RUN_TRANSITIONS, run.status, to);
 
   // Which buttons exist is decided by the transition table + the contract's roles,
   // so the screen can never offer a move the server would refuse.
@@ -177,7 +180,12 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
   }
   if (actions.remove) {
     actionButtons.push(
-      <Button key="delete" variant="ghost" className="text-red-700" onClick={() => setDialog('delete')}>
+      <Button
+        key="delete"
+        variant="ghost"
+        className="text-red-700"
+        onClick={() => setDialog('delete')}
+      >
         Delete
       </Button>,
     );
@@ -209,7 +217,12 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
       ),
     },
     { key: 'gross', header: 'Gross', align: 'right', cell: (item) => money(item.grossMinor) },
-    { key: 'deductions', header: 'Deductions', align: 'right', cell: (item) => money(item.deductionsMinor) },
+    {
+      key: 'deductions',
+      header: 'Deductions',
+      align: 'right',
+      cell: (item) => money(item.deductionsMinor),
+    },
     {
       key: 'employer',
       header: 'Employer cost',
@@ -262,14 +275,18 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
         {run.status === 'draft' && run.rejectionReason && (
           <Alert tone="error" title="This run was rejected and returned to draft">
             <p className="whitespace-pre-line">“{run.rejectionReason}”</p>
-            <p className="mt-1">Fix what was raised (recalculate if needed), then submit it again.</p>
+            <p className="mt-1">
+              Fix what was raised (recalculate if needed), then submit it again.
+            </p>
           </Alert>
         )}
 
         <Card className="border-brand-200 bg-brand-50/40">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0" data-testid="next-step">
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">What happens next</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-800">
+                What happens next
+              </p>
               <h2 className="mt-1 text-lg font-semibold text-ink-900">{next.title}</h2>
               <div className="mt-1 text-sm text-ink-600">{next.body}</div>
             </div>
@@ -281,7 +298,10 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
 
         <div className="grid gap-6 md:grid-cols-2">
           <Card>
-            <CardHeader title="Cost to your organization" description={`In ${run.currency}, before conversion to the USD invoice.`} />
+            <CardHeader
+              title="Cost to your organization"
+              description={`In ${run.currency}, before conversion to the USD invoice.`}
+            />
             <TotalsList
               rows={[
                 { label: 'Gross pay', value: money(run.grossMinor) },
@@ -292,7 +312,10 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
             />
           </Card>
           <Card>
-            <CardHeader title="Paid to workers" description="Gross pay minus deductions, plus reimbursements." />
+            <CardHeader
+              title="Paid to workers"
+              description="Gross pay minus deductions, plus reimbursements."
+            />
             <TotalsList
               rows={[
                 { label: 'Gross pay', value: money(run.grossMinor) },
@@ -325,9 +348,15 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
         open={breakdownFor !== null}
         onClose={() => setBreakdownId(null)}
         title={breakdownFor ? `${breakdownFor.workerName} · ${period}` : 'Pay breakdown'}
-        description={breakdownFor ? `${breakdownFor.workerType === 'employee' ? 'Employee' : 'Contractor'} · ${run.currency}` : undefined}
+        description={
+          breakdownFor
+            ? `${breakdownFor.workerType === 'employee' ? 'Employee' : 'Contractor'} · ${run.currency}`
+            : undefined
+        }
       >
-        {breakdownFor && <PayItemBreakdown item={breakdownFor} currency={run.currency} showEmployerCosts />}
+        {breakdownFor && (
+          <PayItemBreakdown item={breakdownFor} currency={run.currency} showEmployerCosts />
+        )}
       </Modal>
 
       <ConfirmDialog
@@ -336,14 +365,18 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
         title="Approve this payroll run?"
         confirmLabel="Approve and issue invoice"
         loading={approve.isPending}
-        onConfirm={() => void perform(() => approve.mutateAsync(), 'Payroll approved — invoice issued')}
+        onConfirm={() =>
+          void perform(() => approve.mutateAsync(), 'Payroll approved — invoice issued')
+        }
       >
         <p>
-          Approving locks these figures and <strong>issues an invoice</strong> to your organization for{' '}
-          <strong>{money(run.totalCostMinor)}</strong> plus Meridian's fee, converted to USD at today's rate.
+          Approving locks these figures and <strong>issues an invoice</strong> to your organization
+          for <strong>{money(run.totalCostMinor)}</strong> plus Meridian's fee, converted to USD at
+          today's rate.
         </p>
         <p className="mt-2">
-          The invoice is due in {INVOICE_DUE_DAYS} days. Meridian pays your team once it has been paid.
+          The invoice is due in {INVOICE_DUE_DAYS} days. Meridian pays your team once it has been
+          paid.
         </p>
       </ConfirmDialog>
 
@@ -378,8 +411,8 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
         }
       >
         <p>
-          The {period} run for {run.countryName} is removed. Expenses it had claimed are released and
-          will be picked up by the next run you create.
+          The {period} run for {run.countryName} is removed. Expenses it had claimed are released
+          and will be picked up by the next run you create.
         </p>
       </ConfirmDialog>
 
@@ -393,8 +426,8 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
       >
         <p>
           This moves the run to processing: transfers of {money(run.netMinor)} net pay to{' '}
-          {run.workerCount} {run.workerCount === 1 ? 'worker' : 'workers'} begin. The client's invoice
-          must already be paid.
+          {run.workerCount} {run.workerCount === 1 ? 'worker' : 'workers'} begin. The client's
+          invoice must already be paid.
         </p>
       </ConfirmDialog>
 
@@ -404,7 +437,9 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
         title="Mark this run as paid?"
         confirmLabel="Mark paid"
         loading={markPaid.isPending}
-        onConfirm={() => void perform(() => markPaid.mutateAsync(), 'Run marked paid — payslips published')}
+        onConfirm={() =>
+          void perform(() => markPaid.mutateAsync(), 'Run marked paid — payslips published')
+        }
       >
         <p>
           Confirm every transfer has landed. Payslips become visible to workers and the claimed
@@ -415,7 +450,13 @@ function RunDetail({ run }: { run: PayrollRunDetailDto }) {
   );
 }
 
-function TotalsList({ rows, total }: { rows: { label: string; value: string }[]; total: { label: string; value: string } }) {
+function TotalsList({
+  rows,
+  total,
+}: {
+  rows: { label: string; value: string }[];
+  total: { label: string; value: string };
+}) {
   return (
     <dl className="divide-y divide-ink-100 text-sm">
       {rows.map((row) => (
@@ -462,7 +503,12 @@ function RejectDialog({
           <Button variant="secondary" onClick={close} disabled={form.submitting}>
             Cancel
           </Button>
-          <Button type="submit" form="reject-payroll-run" variant="danger" loading={form.submitting}>
+          <Button
+            type="submit"
+            form="reject-payroll-run"
+            variant="danger"
+            loading={form.submitting}
+          >
             Reject run
           </Button>
         </>
@@ -533,13 +579,18 @@ function nextStep(
             }
           : {
               title: 'Invoice paid — Meridian will start paying your team',
-              body: <>We have received your payment and will process this run shortly. {invoiceLink}</>,
+              body: (
+                <>We have received your payment and will process this run shortly. {invoiceLink}</>
+              ),
             };
       }
-      const title = invoice ? `Waiting for invoice ${invoice.number} to be paid` : 'Waiting for the invoice to be paid';
+      const title = invoice
+        ? `Waiting for invoice ${invoice.number} to be paid`
+        : 'Waiting for the invoice to be paid';
       let who: string;
       if (isPlatformAdmin) who = 'The client must pay it before the run can be processed.';
-      else if (isAdmin) who = 'Pay it to release payroll — Meridian pays your team once the funds arrive.';
+      else if (isAdmin)
+        who = 'Pay it to release payroll — Meridian pays your team once the funds arrive.';
       else who = 'A client admin needs to pay it. Meridian pays your team once the funds arrive.';
       return {
         title,
@@ -560,11 +611,7 @@ function nextStep(
     case 'paid':
       return {
         title: `Paid on ${formatDate(run.paidAt)}`,
-        body: (
-          <>
-            All done. Payslips are available to workers in their portal. {invoiceLink}
-          </>
-        ),
+        body: <>All done. Payslips are available to workers in their portal. {invoiceLink}</>,
       };
   }
 }

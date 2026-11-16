@@ -113,7 +113,10 @@ describe('PATCH /countries/:code', () => {
     expect(res.body).toMatchObject({ code: 'FR', monthlyFeeUsdMinor: 70_000, annualLeaveDays: 30 });
     expect((await platform.client.get('/countries/FR')).body.monthlyFeeUsdMinor).toBe(70_000);
 
-    const [audit] = await db.select().from(auditLogs).where(eq(auditLogs.action, 'country.updated'));
+    const [audit] = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.action, 'country.updated'));
     expect(audit).toMatchObject({ organizationId: null, actorUserId: platform.user.id });
     expect(audit?.metadata).toMatchObject({ code: 'FR' });
     expect(audit?.metadata.fields).toEqual(['monthlyFeeUsdMinor', 'annualLeaveDays']);
@@ -123,10 +126,13 @@ describe('PATCH /countries/:code', () => {
     touch('ES');
     const { org } = await createTenant();
     const platform = await createPlatformAdmin(org.id);
-    expect((await platform.client.patch('/countries/ES').send({ eorSupported: false })).status).toBe(
-      200,
-    );
-    const [audit] = await db.select().from(auditLogs).where(eq(auditLogs.action, 'country.updated'));
+    expect(
+      (await platform.client.patch('/countries/ES').send({ eorSupported: false })).status,
+    ).toBe(200);
+    const [audit] = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.action, 'country.updated'));
     expect(audit?.organizationId).toBeNull();
   });
 
@@ -150,7 +156,11 @@ describe('PATCH /countries/:code', () => {
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('validation_error');
     expect(Object.keys(res.body.error.details)).toEqual(
-      expect.arrayContaining(['annualLeaveDays', 'employerContributions.0.rateBps', 'requiredDocuments.0']),
+      expect.arrayContaining([
+        'annualLeaveDays',
+        'employerContributions.0.rateBps',
+        'requiredDocuments.0',
+      ]),
     );
   });
 
@@ -250,7 +260,13 @@ describe('saved quotes', () => {
       breakdown: { countryCode: 'GB', currency: 'GBP', annualSalaryMinor: 6_000_000 },
     });
     expect(res.body.id).toEqual(expect.any(String));
-    expect(Object.keys(res.body).sort()).toEqual(['breakdown', 'countryCode', 'createdAt', 'id', 'label']);
+    expect(Object.keys(res.body).sort()).toEqual([
+      'breakdown',
+      'countryCode',
+      'createdAt',
+      'id',
+      'label',
+    ]);
 
     const [audit] = await db
       .select()
@@ -261,7 +277,9 @@ describe('saved quotes', () => {
 
   it('stores a snapshot: later rate changes do not rewrite it', async () => {
     const { admin } = await createTenant();
-    const saved = await admin.post('/quotes').send({ countryCode: 'CA', annualSalaryMinor: 9_000_000 });
+    const saved = await admin
+      .post('/quotes')
+      .send({ countryCode: 'CA', annualSalaryMinor: 9_000_000 });
     const before = saved.body.breakdown;
 
     await setCountry('CA', { employerContributions: [], monthlyFeeUsdMinor: 1 });
@@ -290,7 +308,9 @@ describe('saved quotes', () => {
 
   it('needs a tenant: a platform admin without X-Org-Id is told to pick one', async () => {
     const platform = await createPlatformAdmin();
-    const res = await platform.client.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1 });
+    const res = await platform.client
+      .post('/quotes')
+      .send({ countryCode: 'US', annualSalaryMinor: 1 });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('organization_required');
   });
@@ -298,7 +318,9 @@ describe('saved quotes', () => {
   it('lists quotes newest first, paginated', async () => {
     const { admin } = await createTenant();
     for (const [i, label] of ['first', 'second', 'third'].entries()) {
-      const res = await admin.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1_000, label });
+      const res = await admin
+        .post('/quotes')
+        .send({ countryCode: 'US', annualSalaryMinor: 1_000, label });
       // Pin creation times so "newest first" does not depend on clock resolution.
       await db
         .update(quotes)
@@ -340,7 +362,9 @@ describe('saved quotes', () => {
   it('answers 404 when deleting another organization’s quote', async () => {
     const a = await createTenant();
     const b = await createTenant();
-    const saved = await b.admin.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1_000 });
+    const saved = await b.admin
+      .post('/quotes')
+      .send({ countryCode: 'US', annualSalaryMinor: 1_000 });
     expect((await a.admin.delete(`/quotes/${saved.body.id}`)).status).toBe(404);
     expect((await b.admin.get('/quotes')).body.total).toBe(1);
   });
@@ -356,7 +380,8 @@ describe('saved quotes', () => {
     const worker = await loginAsWorker(await createWorker(org.id));
     expect((await worker.client.get('/quotes')).status).toBe(403);
     expect(
-      (await worker.client.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1 })).status,
+      (await worker.client.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1 }))
+        .status,
     ).toBe(403);
     expect((await worker.client.delete(`/quotes/${saved.body.id}`)).status).toBe(403);
   });
@@ -364,7 +389,9 @@ describe('saved quotes', () => {
   it('lets a manager save, list and delete', async () => {
     const { org } = await createTenant();
     const manager = await createManager(org.id);
-    const saved = await manager.client.post('/quotes').send({ countryCode: 'US', annualSalaryMinor: 1 });
+    const saved = await manager.client
+      .post('/quotes')
+      .send({ countryCode: 'US', annualSalaryMinor: 1 });
     expect(saved.status).toBe(201);
     expect((await manager.client.get('/quotes')).body.total).toBe(1);
     expect((await manager.client.delete(`/quotes/${saved.body.id}`)).status).toBe(204);

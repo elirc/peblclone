@@ -67,8 +67,8 @@ export function PayItemBreakdown({
       {showEmployerCosts && (
         <div className="border-t border-dashed border-ink-200 pt-5">
           <p className="mb-2 text-xs text-ink-500">
-            Employer costs are paid by your organization on top of gross pay. They do not appear
-            on the worker's payslip.
+            Employer costs are paid by your organization on top of gross pay. They do not appear on
+            the worker's payslip.
           </p>
           <LineTable
             caption="Employer costs"

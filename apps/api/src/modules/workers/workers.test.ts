@@ -133,9 +133,12 @@ describe('POST /workers (hire)', () => {
     expect(res.body.acceptUrl).toMatch(/\/accept-invite\?token=.{40,}/);
 
     const docs = await db.select().from(documents).where(eq(documents.workerId, worker.id));
-    expect(docs.map((d) => d.kind).sort()).toEqual(
-      ['bank_proof', 'passport', 'proof_of_address', 'tax_form'],
-    );
+    expect(docs.map((d) => d.kind).sort()).toEqual([
+      'bank_proof',
+      'passport',
+      'proof_of_address',
+      'tax_form',
+    ]);
     expect(docs.find((d) => d.kind === 'bank_proof')?.title).toBe('Proof of bank account');
     expect(docs.every((d) => d.status === 'requested' && d.organizationId === org.id)).toBe(true);
 
@@ -226,9 +229,12 @@ describe('POST /workers (hire)', () => {
       .send(hireBody({ email: 'nope', salaryMinor: 0, startDate: '2026-13-40', type: 'intern' }));
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe('validation_error');
-    expect(Object.keys(res.body.error.details).sort()).toEqual(
-      ['email', 'salaryMinor', 'startDate', 'type'],
-    );
+    expect(Object.keys(res.body.error.details).sort()).toEqual([
+      'email',
+      'salaryMinor',
+      'startDate',
+      'type',
+    ]);
   });
 
   it('is open to managers and platform admins (inside a tenant), not workers', async () => {
@@ -278,7 +284,11 @@ describe('GET /workers', () => {
     const res = await admin.get('/workers');
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ total: 3, limit: 25, offset: 0 });
-    expect(res.body.items.map((w: { firstName: string }) => w.firstName)).toEqual(['Bob', 'Zed', 'Amy']);
+    expect(res.body.items.map((w: { firstName: string }) => w.firstName)).toEqual([
+      'Bob',
+      'Zed',
+      'Amy',
+    ]);
     expect(res.body.items[0]).toMatchObject({ countryName: 'Germany', hasPortalAccess: false });
     expect(res.body.items[0]).not.toHaveProperty('tasks');
   });
@@ -300,7 +310,11 @@ describe('GET /workers', () => {
 
   it('searches names, email and job title case-insensitively', async () => {
     const { org, admin } = await createTenant();
-    await createWorker(org.id, { firstName: 'Grace', lastName: 'Hopper', email: 'grace@navy.test' });
+    await createWorker(org.id, {
+      firstName: 'Grace',
+      lastName: 'Hopper',
+      email: 'grace@navy.test',
+    });
     await createWorker(org.id, { firstName: 'Alan', lastName: 'Turing', jobTitle: 'Codebreaker' });
     await createWorker(org.id, { firstName: 'Kat', lastName: 'Johnson' });
 
@@ -427,7 +441,11 @@ describe('PATCH /workers/:id', () => {
       .send({ jobTitle: 'Staff Engineer', salaryMinor: 8_000_000, firstName: worker.firstName });
 
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ jobTitle: 'Staff Engineer', salaryMinor: 8_000_000, department: 'R&D' });
+    expect(res.body).toMatchObject({
+      jobTitle: 'Staff Engineer',
+      salaryMinor: 8_000_000,
+      department: 'R&D',
+    });
     expect(res.body.tasks).toEqual([]);
 
     const [audit] = await auditsFor('worker.updated');
@@ -477,7 +495,9 @@ describe('PATCH /workers/:id', () => {
   it('validates the body', async () => {
     const { org, admin } = await createTenant();
     const worker = await createWorker(org.id);
-    const res = await admin.patch(`/workers/${worker.id}`).send({ salaryMinor: -5, payBasis: 'weekly' });
+    const res = await admin
+      .patch(`/workers/${worker.id}`)
+      .send({ salaryMinor: -5, payBasis: 'weekly' });
     expect(res.status).toBe(400);
     expect(Object.keys(res.body.error.details).sort()).toEqual(['payBasis', 'salaryMinor']);
   });
@@ -490,9 +510,15 @@ describe('PATCH /workers/:id', () => {
     const manager = await createManager(a.org.id);
     const worker = await loginAsWorker(mine);
 
-    expect((await manager.client.patch(`/workers/${mine.id}`).send({ jobTitle: 'X' })).status).toBe(200);
-    expect((await worker.client.patch(`/workers/${mine.id}`).send({ jobTitle: 'Y' })).status).toBe(403);
-    expect((await a.admin.patch(`/workers/${foreign.id}`).send({ jobTitle: 'Z' })).status).toBe(404);
+    expect((await manager.client.patch(`/workers/${mine.id}`).send({ jobTitle: 'X' })).status).toBe(
+      200,
+    );
+    expect((await worker.client.patch(`/workers/${mine.id}`).send({ jobTitle: 'Y' })).status).toBe(
+      403,
+    );
+    expect((await a.admin.patch(`/workers/${foreign.id}`).send({ jobTitle: 'Z' })).status).toBe(
+      404,
+    );
   });
 });
 
@@ -517,14 +543,20 @@ describe('POST /workers/:id/transition', () => {
     expect(res.status).toBe(200);
     expect(res.body).toMatchObject({ status: 'offboarding', endDate: '2026-12-31' });
     const [audit] = await auditsFor('worker.status_changed');
-    expect(audit?.metadata).toMatchObject({ from: 'active', to: 'offboarding', reason: 'Resigned' });
+    expect(audit?.metadata).toMatchObject({
+      from: 'active',
+      to: 'offboarding',
+      reason: 'Resigned',
+    });
   });
 
   it('requires an end date for offboarding, on or after the start date', async () => {
     const { org, admin } = await createTenant();
     const worker = await createWorker(org.id, { startDate: '2025-01-01' });
 
-    const missing = await admin.post(`/workers/${worker.id}/transition`).send({ to: 'offboarding' });
+    const missing = await admin
+      .post(`/workers/${worker.id}/transition`)
+      .send({ to: 'offboarding' });
     expect(missing.status).toBe(400);
     expect(missing.body.error.details).toHaveProperty('endDate');
 
@@ -577,7 +609,9 @@ describe('POST /workers/:id/transition', () => {
 
     const [after] = await db.select().from(contracts).where(eq(contracts.id, contract.id));
     expect(after?.status).toBe('void');
-    expect(await db.select().from(invitations).where(eq(invitations.workerId, workerId))).toHaveLength(0);
+    expect(
+      await db.select().from(invitations).where(eq(invitations.workerId, workerId)),
+    ).toHaveLength(0);
 
     // The old link is dead.
     const token = new URL(hired.body.acceptUrl).searchParams.get('token');
@@ -625,9 +659,15 @@ describe('POST /workers/:id/transition', () => {
     const platform = await createPlatformAdmin(org.id);
     const body = { to: 'offboarding', endDate: '2026-12-31' };
 
-    expect((await manager.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(403);
-    expect((await worker.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(403);
-    expect((await platform.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(200);
+    expect((await manager.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(
+      403,
+    );
+    expect((await worker.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(
+      403,
+    );
+    expect((await platform.client.post(`/workers/${target.id}/transition`).send(body)).status).toBe(
+      200,
+    );
   });
 
   it('answers 404 for another organization’s worker and 400 for a bad body', async () => {
@@ -640,7 +680,9 @@ describe('POST /workers/:id/transition', () => {
     expect(res.status).toBe(404);
 
     const mine = await createWorker(a.org.id);
-    expect((await a.admin.post(`/workers/${mine.id}/transition`).send({ to: 'fired' })).status).toBe(400);
+    expect(
+      (await a.admin.post(`/workers/${mine.id}/transition`).send({ to: 'fired' })).status,
+    ).toBe(400);
   });
 });
 
@@ -728,7 +770,9 @@ describe('POST /onboarding-tasks/:id/complete', () => {
     const clientTask = await taskOf(worker.id, 'client_confirm_start');
     const workerTask = await taskOf(worker.id, 'bank_details');
 
-    expect((await manager.client.post(`/onboarding-tasks/${clientTask.id}/complete`)).status).toBe(200);
+    expect((await manager.client.post(`/onboarding-tasks/${clientTask.id}/complete`)).status).toBe(
+      200,
+    );
     expect((await admin.post(`/onboarding-tasks/${workerTask.id}/complete`)).status).toBe(403);
   });
 
@@ -766,7 +810,9 @@ describe('POST /onboarding-tasks/:id/complete', () => {
     const platform = await createPlatformAdmin(org.id);
     for (const key of ['bank_details', 'client_confirm_start']) {
       const task = await taskOf(worker.id, key);
-      expect((await platform.client.post(`/onboarding-tasks/${task.id}/complete`)).status).toBe(200);
+      expect((await platform.client.post(`/onboarding-tasks/${task.id}/complete`)).status).toBe(
+        200,
+      );
     }
   });
 
@@ -806,7 +852,10 @@ describe('POST /onboarding-tasks/:id/complete', () => {
       .set({ status: 'completed', completedAt: new Date() })
       .where(eq(onboardingTasks.workerId, worker.id));
     const last = await taskOf(worker.id, 'bank_details');
-    await db.update(onboardingTasks).set({ status: 'pending', completedAt: null }).where(eq(onboardingTasks.id, last.id));
+    await db
+      .update(onboardingTasks)
+      .set({ status: 'pending', completedAt: null })
+      .where(eq(onboardingTasks.id, last.id));
 
     const res = await me.client.post(`/onboarding-tasks/${last.id}/complete`);
     expect(res.status).toBe(200);
@@ -825,7 +874,9 @@ describe('POST /onboarding-tasks/:id/complete', () => {
     const me = await loginAsWorker(mine);
 
     const colleagueTask = await taskOf(colleague.id, 'bank_details');
-    expect((await me.client.post(`/onboarding-tasks/${colleagueTask.id}/complete`)).status).toBe(404);
+    expect((await me.client.post(`/onboarding-tasks/${colleagueTask.id}/complete`)).status).toBe(
+      404,
+    );
 
     const foreignTask = await taskOf(foreign.id, 'client_confirm_start');
     expect((await a.admin.post(`/onboarding-tasks/${foreignTask.id}/complete`)).status).toBe(404);
@@ -864,7 +915,9 @@ describe('review fixes', () => {
     expect(res.body.error.code).toBe('email_in_use');
     // This failure happens AFTER the worker, tasks and documents were inserted,
     // so it is the real proof that the hire is one transaction.
-    expect(await db.select().from(workers).where(eq(workers.organizationId, org.id))).toHaveLength(0);
+    expect(await db.select().from(workers).where(eq(workers.organizationId, org.id))).toHaveLength(
+      0,
+    );
     expect(await db.select().from(onboardingTasks)).toHaveLength(0);
     expect(await db.select().from(documents)).toHaveLength(0);
   });

@@ -17,15 +17,15 @@ docs/             JOURNAL.md, api-contract.md, adr/, briefs/
 
 ## Commands (run from the repo root unless noted)
 
-| What | Command |
-| --- | --- |
-| Typecheck one package | `npx tsc -p packages/shared` / `apps/api` / `apps/web` |
-| Shared unit tests | `cd packages/shared && npx vitest run` |
-| API tests (one module) | `cd apps/api && npx vitest run src/modules/<name>` |
-| API tests (all) | `cd apps/api && npx vitest run` |
-| New migration after editing schema.ts | `npm run db:generate -- --name <what_changed>` |
-| Apply migrations / seed dev DB | `npm run db:migrate` / `npm run db:seed` |
-| Run everything | `npm run dev` (API :4000, web :5173) |
+| What                                  | Command                                                |
+| ------------------------------------- | ------------------------------------------------------ |
+| Typecheck one package                 | `npx tsc -p packages/shared` / `apps/api` / `apps/web` |
+| Shared unit tests                     | `cd packages/shared && npx vitest run`                 |
+| API tests (one module)                | `cd apps/api && npx vitest run src/modules/<name>`     |
+| API tests (all)                       | `cd apps/api && npx vitest run`                        |
+| New migration after editing schema.ts | `npm run db:generate -- --name <what_changed>`         |
+| Apply migrations / seed dev DB        | `npm run db:migrate` / `npm run db:seed`               |
+| Run everything                        | `npm run dev` (API :4000, web :5173)                   |
 
 Postgres 18 runs on **localhost:5443** (user/password `postgres`). Databases:
 `meridian_dev`, `meridian_test` (+ `meridian_test_a|b|c` for parallel agents).
@@ -54,7 +54,7 @@ Tests pick their database from `TEST_DATABASE_URL`.
 8. **Errors** are thrown as `AppError` via the helpers in `lib/errors.ts`. Never
    `res.status(500)` by hand, never leak a stack trace or SQL error to the client.
 9. **Modules do not import other modules.** Shared behaviour lives in `apps/api/src/lib`.
-   Reading/writing another module's *table* inside your own transaction is allowed
+   Reading/writing another module's _table_ inside your own transaction is allowed
    when the contract says so.
 10. **Tests are integration tests** against real Postgres through HTTP (supertest),
     using the factories in `apps/api/src/test/helpers.ts`. Every module tests: the

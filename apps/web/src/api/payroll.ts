@@ -50,7 +50,8 @@ export function usePayrollRun(id: string) {
 export function useCreatePayrollRun() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: CreatePayrollRunInput) => api.post<PayrollRunDetailDto>('/payroll/runs', input),
+    mutationFn: (input: CreatePayrollRunInput) =>
+      api.post<PayrollRunDetailDto>('/payroll/runs', input),
     onSuccess: (run) => {
       queryClient.setQueryData(runKey(run.id), run);
       return invalidate(keys.payroll, keys.expenses, keys.dashboard, keys.audit);
@@ -101,7 +102,8 @@ export function useApprovePayrollRun(id: string) {
 export function useRejectPayrollRun(id: string) {
   return useRunAction(
     id,
-    (input: RejectPayrollRunInput) => api.post<PayrollRunDetailDto>(`/payroll/runs/${id}/reject`, input),
+    (input: RejectPayrollRunInput) =>
+      api.post<PayrollRunDetailDto>(`/payroll/runs/${id}/reject`, input),
     [keys.dashboard],
   );
 }

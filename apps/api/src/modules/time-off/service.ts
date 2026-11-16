@@ -186,7 +186,11 @@ export async function listRequests(
 
   const [rows, [total]] = await Promise.all([
     db
-      .select({ request: timeOffRequests, firstName: workers.firstName, lastName: workers.lastName })
+      .select({
+        request: timeOffRequests,
+        firstName: workers.firstName,
+        lastName: workers.lastName,
+      })
       .from(timeOffRequests)
       .innerJoin(workers, eq(workers.id, timeOffRequests.workerId))
       .where(where)

@@ -20,7 +20,11 @@ afterEach(() => vi.unstubAllGlobals());
 
 const invoicePath = `/invoices/${INVOICE_ID}`;
 
-function setup(user: SessionUser, invoice: InvoiceDetailDto, ...extra: Parameters<typeof mockFetch>) {
+function setup(
+  user: SessionUser,
+  invoice: InvoiceDetailDto,
+  ...extra: Parameters<typeof mockFetch>
+) {
   const fetchMock = mockFetch(
     signedInAs(user),
     route('GET', invoicePath, () => jsonResponse(invoice)),
@@ -34,7 +38,9 @@ describe('InvoiceDetailPage', () => {
   it('renders bill-to, lines, totals, the FX note and the payroll link', async () => {
     setup(makeUser('client_manager'), makeInvoice());
 
-    expect(await screen.findByRole('heading', { name: 'Invoice INV-2026-000042' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Invoice INV-2026-000042' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('Acme GmbH')).toBeInTheDocument();
 
     const lines = screen.getByRole('table', { name: 'Invoice lines' });
@@ -71,7 +77,10 @@ describe('InvoiceDetailPage', () => {
   });
 
   it('does not offer Pay on a paid invoice', async () => {
-    setup(makeUser('client_admin'), makeInvoice({ status: 'paid', paidAt: '2026-04-01T08:00:00.000Z' }));
+    setup(
+      makeUser('client_admin'),
+      makeInvoice({ status: 'paid', paidAt: '2026-04-01T08:00:00.000Z' }),
+    );
     await screen.findByRole('heading', { name: 'Invoice INV-2026-000042' });
     expect(screen.queryByRole('button', { name: 'Pay invoice' })).not.toBeInTheDocument();
   });
@@ -105,6 +114,8 @@ describe('InvoiceDetailPage', () => {
     );
     expect(await screen.findByText('Invoice INV-2026-000042 paid')).toBeInTheDocument();
     // The paid response replaced the cached invoice: no more Pay button on the page.
-    await waitFor(() => expect(screen.queryByRole('button', { name: 'Pay invoice' })).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Pay invoice' })).not.toBeInTheDocument(),
+    );
   });
 });

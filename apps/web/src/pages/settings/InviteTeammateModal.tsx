@@ -1,4 +1,8 @@
-import { createTeamInviteSchema, INVITABLE_TEAM_ROLES, type CreateTeamInviteInput } from '@meridian/shared';
+import {
+  createTeamInviteSchema,
+  INVITABLE_TEAM_ROLES,
+  type CreateTeamInviteInput,
+} from '@meridian/shared';
 import { Copy } from 'lucide-react';
 import { useCreateTeamInvite } from '../../api/organization';
 import { Alert, Button, Input, Modal, Select, useToast } from '../../components/ui';
@@ -91,7 +95,13 @@ export function InviteTeammateModal({ open, onClose }: { open: boolean; onClose:
     >
       <form id="invite-teammate" onSubmit={onSubmit} className="space-y-4" noValidate>
         {form.formError && <Alert tone="error">{form.formError}</Alert>}
-        <Input label="Work email" type="email" autoComplete="off" required {...form.field('email')} />
+        <Input
+          label="Work email"
+          type="email"
+          autoComplete="off"
+          required
+          {...form.field('email')}
+        />
         <Select
           label="Role"
           required
@@ -100,7 +110,10 @@ export function InviteTeammateModal({ open, onClose }: { open: boolean; onClose:
           value={form.values.role}
           error={form.errors.role}
           onChange={(event) =>
-            form.setValue('role', INVITABLE_TEAM_ROLES.find((r) => r === event.target.value) ?? 'client_manager')
+            form.setValue(
+              'role',
+              INVITABLE_TEAM_ROLES.find((r) => r === event.target.value) ?? 'client_manager',
+            )
           }
         >
           {INVITABLE_TEAM_ROLES.map((role) => (
