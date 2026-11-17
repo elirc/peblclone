@@ -59,6 +59,7 @@ the commit it produced, so you can check out that commit and look at the code as
   - [18. Wave 2: twenty pages, and the bugs only a browser finds](#18-wave-2-twenty-pages-and-the-bugs-only-a-browser-finds)
   - [19. Where the bugs actually came from](#19-where-the-bugs-actually-came-from)
   - [20. Where it stands, and what is still missing](#20-where-it-stands-and-what-is-still-missing)
+  - [21. First push, first CI run](#21-first-push-first-ci-run)
   - [Next entries](#next-entries)
 
 > **In a hurry?** Read chapter 11 (how to delegate), chapter 17 (the review that found a
@@ -2333,7 +2334,8 @@ UI flow                  → approve payroll · pay invoice · hire · sign cont
 About 32,000 lines across 19 commits; twelve API modules, twenty pages, 490 tests. The
 CI workflow in `.github/workflows/ci.yml` runs the same gates — **but it has never
 actually run**, because this repository has not been pushed anywhere. It is written
-carefully and it is unverified, and those are two different things.
+carefully and it is unverified, and those are two different things. *(Update: it has now
+run, and passed — chapter 21.)*
 
 ### 20.2 Known gaps
 
@@ -2378,7 +2380,7 @@ These are real, and each names what a production version would need.
 - **Component tests cover the logic-heavy pages**, not all twenty. The payslips, audit,
   organizations, settings, calculator and countries pages are covered only by the
   browser sweep.
-- **CI has never run.**
+- ~~**CI has never run.**~~ It has now — see chapter 21.
 
 ### 20.3 The method, on one page
 
@@ -2415,13 +2417,62 @@ is still not known.
 
 *This journal is meant to continue. Planned, in rough priority order:*
 
-- Push the repository and get the CI workflow green for real.
+- Bump the GitHub Actions to versions that run on Node 24; pin the runner image.
 - Investigate the 670 kB bundle with a bundle analyser — measure first.
 - Decide and implement the back-pay / off-cycle payment model.
 - Separate identity from membership so one person can belong to two tenants.
 - Row-level security as a second tenant-isolation layer.
 - A production build and container image for the API.
 - Promote the throwaway browser sweep into a committed end-to-end suite.
+
+---
+
+## 21. First push, first CI run
+
+Two days after the build, the repository got a home: a private GitHub repository,
+`elirc/peblclone`, with all 22 commits pushed to `main`.
+
+Before pushing, one check — the same one you should run before any first push:
+
+```
+$ git ls-files | grep -iE ".env$|.pem$|id_rsa|secret"          → (nothing)
+$ git grep -nIE "(api[_-]?key|secret|token)s*[:=]s*['\"][A-Za-z0-9_-]{20,}"   → (nothing)
+```
+
+`.env` was in `.gitignore` from the first commit (chapter 5), so the database password in
+it never entered history. Once something is pushed it should be treated as public forever,
+even in a private repository — so the time to look is *before*.
+
+The push triggered `.github/workflows/ci.yml`, which chapter 20 had flagged as "written
+carefully and unverified". It ran on a clean Ubuntu machine with a throwaway Postgres
+service: `npm ci`, format check, typecheck, the shared, API and web suites, and the
+production build.
+
+```
+✓ main CI · 44171325916
+✓ verify in 1m51s
+```
+
+Green on the first run. That is a genuinely useful result, and not because it is
+flattering: it is the first time the test suite has passed on a machine that is *not* the
+one it was written on. Different operating system, a Postgres on port 5432 instead of
+5443, no `.env` file, no leftover `node_modules`, no seeded dev database. Everything
+the suite needed, it had to create for itself.
+
+The run did leave two warnings, recorded here rather than ignored:
+
+- **The checkout and Node setup actions target Node 20**, which GitHub has deprecated;
+  the runner forced them onto Node 24. Harmless today; it will become an error. The fix
+  is a version bump of the two actions — a small, separate commit.
+- **`ubuntu-latest` is moving to a newer Ubuntu release.** A floating label means the
+  CI environment can change under you without a commit. Pinning the runner image is the
+  same argument as pinning TypeScript in chapter 4.
+
+**Lesson — "it works on my machine" is a claim about your machine.** CI is the first
+test of whether the project carries everything it needs with it. A suite that only
+passes where it was written has a hidden dependency, and the first clean machine is
+where you find it — preferably a CI runner, rather than a new colleague's laptop on
+their first day.
 
 <!-- JOURNAL:APPEND-BELOW -->
 
