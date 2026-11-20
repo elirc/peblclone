@@ -2424,6 +2424,8 @@ is still not known.
 - Row-level security as a second tenant-isolation layer.
 - A production build and container image for the API.
 - Promote the throwaway browser sweep into a committed end-to-end suite.
+- Automations and AI-assisted features — planned, with 27 junior stories, in
+  [docs/ai-and-automation/](ai-and-automation/README.md). Principle one: AI suggests, people decide.
 
 ---
 

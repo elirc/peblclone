@@ -113,6 +113,11 @@ Thirty more stories (US-21 to US-50), mid-level, in a different style: instead o
 to change, each gives the system-design concept behind the task, the design options and
 their trade-offs, and hints. See [part2/README.md](part2/README.md).
 
+## Part 3: automations and AI
+
+US-51 to US-77 live with their plan in [../ai-and-automation/](../ai-and-automation/README.md):
+junior-level stories that add rule-based automations and AI-assisted features.
+
 ## When you get stuck
 
 - **Find the nearest example.** Every pattern these stories need already exists

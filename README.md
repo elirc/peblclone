@@ -59,6 +59,8 @@ npm run build
   step-by-step implementation instructions. Not implemented: they are for you to do.
   [Part 2](docs/userstories/part2) adds thirty mid-level design stories with the architecture
   background and hints rather than line-by-line steps.
+- [docs/ai-and-automation/](docs/ai-and-automation) — a plan for rule-based automations and AI-assisted
+  features, with 27 junior-level stories (US-51 to US-77) to build it. A proposal; nothing there is built.
 - [docs/api-contract.md](docs/api-contract.md) — every endpoint and business rule.
 - [docs/adr/](docs/adr) — architecture decision records.
 - [docs/briefs/](docs/briefs) — the briefs given to each builder agent, verbatim.
